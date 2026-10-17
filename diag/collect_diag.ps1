@@ -37,6 +37,40 @@ Section "scripts"
 Get-ChildItem (Join-Path $GameDir "scripts") -Recurse -File -ErrorAction SilentlyContinue |
     ForEach-Object { Line ("{0,-60} {1:yyyy-MM-dd HH:mm}  {2}" -f $_.FullName.Substring($GameDir.Length), $_.LastWriteTime, $_.Length) }
 
+Section "SHVDN Enhanced 1.1.0.6: files vs official release (sha256)"
+$official = @{
+    "ScriptHookVDotNet.asi"  = "c702e54a7e806acb8bb21de807ff3747e6c24269ce71797aa81e21580d14a08e"
+    "ScriptHookVDotNet2.dll" = "1d4305d1ae206aee3096db28967c98e726c2af9da147da28a766967502f2dfd5"
+    "ScriptHookVDotNet3.dll" = "1e4d0bc4d34d05a6038fc87eede492d3dc4265522de473ec19cdf6746b5b0e48"
+    "ScriptHookVDotNet.ini"  = "c9ecd8e277f8c7012793e8a2368700c71be626d3d270f0b68e6dba0aca53bb72"
+    "MinHook.x64.dll"        = "033e55af8995c3b260e56de73daf99ff4a7ce2fcbe4b3872db2270678d8c6585"
+}
+foreach ($k in $official.Keys) {
+    $p = Join-Path $GameDir $k
+    if (Test-Path $p) {
+        $h = (Get-FileHash $p -Algorithm SHA256).Hash.ToLower()
+        Line ("{0,-24} {1}" -f $k, $(if ($h -eq $official[$k]) { "OK" } else { "DIFFERENT " + $h }))
+    } else { Line ("{0,-24} MISSING" -f $k) }
+}
+
+Section "ScriptHookVDotNet.log writable by this user?"
+$shvdnLog = Join-Path $GameDir "ScriptHookVDotNet.log"
+if (Test-Path $shvdnLog) {
+    $fi = Get-Item $shvdnLog
+    Line ("attributes: " + $fi.Attributes)
+    try { [IO.File]::Open($shvdnLog, "Append", "Write", "Read").Dispose(); Line "append: OK" }
+    catch { Line ("append: FAILED " + $_.Exception.Message) }
+    try { (Get-Acl $shvdnLog).Access | ForEach-Object { Line ("acl: {0} {1} {2}" -f $_.IdentityReference, $_.AccessControlType, $_.FileSystemRights) } } catch { }
+} else { Line "no ScriptHookVDotNet.log" }
+try { [IO.File]::WriteAllText((Join-Path $GameDir "gtaradio_write_test.tmp"), "x"); Remove-Item (Join-Path $GameDir "gtaradio_write_test.tmp"); Line "game dir write: OK" }
+catch { Line ("game dir write: FAILED " + $_.Exception.Message) }
+Line ("this shell elevated: " + ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
+
+Section "VC++ 2015-2022 x64 runtime"
+try { $vc = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64" -ErrorAction Stop; Line ("installed={0} version={1}" -f $vc.Installed, $vc.Version) }
+catch { Line "NOT FOUND" }
+Line (".NET Framework release: " + (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full").Release)
+
 Section "rpf"
 FileInfoLine (Join-Path $GameDir "mods\update\update.rpf")
 FileInfoLine (Join-Path $GameDir "update\update.rpf")
