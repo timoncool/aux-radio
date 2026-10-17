@@ -10,7 +10,7 @@ using GtaRadio.Shared;
 namespace GtaRadio.Mod
 {
     /// <summary>
-    /// GTA Radio: станция RADIO_02_POP (в колесе — «GTA Radio», имя из GXT2) играет поток агента:
+    /// AUX Radio: станция RADIO_02_POP (в колесе — «AUX Radio», имя из GXT2) играет поток агента:
     /// звук Яндекс Музыки, Spotify или любого другого плеера.
     ///
     /// Схема — как у рабочего Enhanced-мода MichonGoddijn231849/gta-spotify-radio:
@@ -219,7 +219,7 @@ namespace GtaRadio.Mod
             // чтобы выбранный игроком OFF не считался нашей станцией.
             if (_wasRetuning && !retuning && station != _station) _holdingOff = false;
             _wasRetuning = retuning;
-            // Пешком станция остаётся за нами (как у образца): вернулся в машину с OFF — снова GTA Radio.
+            // Пешком станция остаётся за нами (как у образца): вернулся в машину с OFF — снова AUX Radio.
             bool owned;
             if (veh == null || retuning) owned = _owned;
             else owned = station == _station || (_holdingOff && station == Off);

@@ -1,4 +1,4 @@
-; Установщик GTA Radio для GTA V Enhanced.
+; Установщик AUX Radio для GTA V Enhanced.
 ; Стиль — как у установщика нейроозвучки (тёмный мастер, арт, проверка папки игры).
 ; Сборка: build.ps1 собирает payload\ и вызывает ISCC.exe (см. docs\DEEPSEEK.md).
 ;
