@@ -1,0 +1,180 @@
+﻿GTA Radio diag, label=T0, 2026-10-17 08:58:53
+
+==== processes
+
+==== game root (asi/dll/ini/txt)
+amd_ags_x64.dll                          2026-10-05 13:31  177128
+amd_fidelityfx_dx12.dll                  2026-10-05 13:31  6675664
+args.txt                                 2026-10-17 07:59  17
+bink2w64.dll                             2026-10-05 13:31  394960
+dinput8.dll                              2026-10-17 07:59  131072
+dstorage.dll                             2026-10-05 13:53  206880
+dstoragecore.dll                         2026-10-05 13:53  1468960
+fvad.dll                                 2026-10-05 13:53  34280
+GFSDK_Aftermath_Lib.x64.dll              2026-10-05 13:53  5148256
+libcurl.dll                              2026-10-05 13:34  545256
+libtox.dll                               2026-10-05 13:34  269800
+NativeTrainer.asi                        2026-10-17 07:59  216576
+nvngx_dlss.dll                           2026-10-05 13:46  29981808
+nvngx_dlssg.dll                          2026-10-05 13:33  7509024
+oo2core_5_win64.dll                      2026-10-05 13:33  945640
+opus.dll                                 2026-10-05 13:33  407016
+opusenc.dll                              2026-10-05 13:33  59368
+RageOpenV.asi                            2026-10-10 09:19  134144
+RageOpenV.ini                            2026-10-10 09:19  81
+RUNE64.dll                               2026-10-08 06:51  3807232
+ScriptHookV.dll                          2026-10-17 07:59  1987072
+ScriptHookVDotNet.asi                    2026-10-17 07:59  296960
+ScriptHookVDotNet.ini                    2026-10-17 07:59  1955
+ScriptHookVDotNet3.dll                   2026-10-17 07:59  1437696
+sl.common.dll                            2026-10-08 06:51  674432
+sl.dlss.dll                              2026-10-08 06:51  240256
+sl.dlss_g.dll                            2026-10-08 06:51  456320
+sl.interposer.dll                        2026-10-08 06:51  557184
+sl.pcl.dll                               2026-10-08 06:51  176256
+sl.reflex.dll                            2026-10-08 06:51  200320
+socialclub.dll                           2026-10-08 06:51  4824184
+socialclub_emu.ini                       2026-10-08 07:14  220
+steam_api64.dll                          2026-10-08 06:51  300392
+StraightToStoryMode.asi                  2026-10-08 07:15  42496
+version.dll                              2026-10-08 06:51  392824
+XCurl.dll                                2026-10-05 13:37  198240
+xinput1_4.dll                            2026-10-17 07:59  133632
+zlib1.dll                                2026-10-05 13:37  99304
+
+==== scripts
+\scripts\GtaRadio.Mod.dll.off                                2026-10-17 08:56  23040
+\scripts\GtaRadio.Mod.ini                                    2026-10-17 08:56  2823
+\scripts\NAudio.Core.dll                                     2023-09-04 22:49  187904
+\scripts\NAudio.Wasapi.dll                                   2023-09-04 22:49  179200
+
+==== rpf
+G:\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\mods\update\update.rpf  2026-10-17 08:41:34  3122517504 bytes
+G:\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\update\update.rpf  2026-10-05 13:58:25  3122239488 bytes
+
+==== ScriptHookV.log (tail 40)
+G:\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\ScriptHookV.log  2026-10-17 08:57:53  418 bytes
+// GTA V SCRIPT HOOK (build Jul 15 2026, v3889.0/1158.13)
+//          (C) Alexander Blade 2015-2026
+[08:57:52] INIT: Started
+[08:57:52] INIT: Pool 2 extended
+[08:57:52] INIT: Pool 4 extended
+[08:57:52] INIT: Success, game version is VER_EN_1_0_1158_13
+[08:57:52] INIT: Registering script 'NativeTrainer.asi' (0x00007FFD07AAA3C0)
+[08:57:53] INIT: Registering script 'ScriptHookVDotNet.asi' (0x00007FFD079D1B70)
+
+==== ScriptHookVDotNet.log (tail 80)
+G:\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\ScriptHookVDotNet.log  2026-10-17 07:42:05  986 bytes
+[07:42:00] [INFO] ScriptHookV .Net Enhanced 3.9.0.6 (1.1.0.6)
+[07:42:00] [DEBUG] Loading API from .\ScriptHookVDotNet3.dll ...
+[07:42:00] [DEBUG] Initializing NativeMemory members...
+[07:42:03] [INFO] CreateHook: SHVNDE created the hook GxtMinHooked, of type MinHook, at 0x7FF656216B90, with OriginalTarget at 0x7FF655CD0FC0.
+[07:42:04] [INFO] CreateHook: SHVNDE created the hook UpdateSpecialFlightVehicleBonesCallHooked, of type CallHook, at 0x7FF656BAE1E4, with OriginalTarget at 0x7FF656BAF7F0, Stub at 0x7FF655CC0000.
+[07:42:05] [DEBUG] NativeMemory took 5102 milliseconds
+[07:42:05] [DEBUG] Loading scripts from G:\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\scripts ...
+[07:42:05] [DEBUG] Loading assembly GtaRadioMod.dll ...
+[07:42:05] [INFO] Found 1 script(s) in GtaRadioMod.dll resolved to API version 3.9.0 (target API version: 3.9.0).
+[07:42:05] [DEBUG] Instantiating script GtaRadioMod.GtaRadioMod ...
+[07:42:05] [INFO] Started script GtaRadioMod.GtaRadioMod.
+
+==== probe.log
+C:\Users\user\AppData\Local\GtaRadio\probe.log  (no file)
+
+==== mod.log
+C:\Users\user\AppData\Local\GtaRadio\mod.log  (no file)
+
+==== agent.log
+C:\Users\user\AppData\Local\GtaRadio\agent.log  (no file)
+
+==== sessions.json (player volumes the agent must restore)
+C:\Users\user\AppData\Local\GtaRadio\sessions.json  (no file)
+
+==== Application event log, last 30 min
+--- 08:41:40 id=1026 .NET Runtime
+Application: gta-patch.exe
+CoreCLR Version: 8.0.1124.51707
+.NET Version: 8.0.11
+Description: The process was terminated due to an unhandled exception.
+Exception Info: System.IO.FileNotFoundException: update.rpf\x64\patch\data\lang${l}_rel.rpf\global.gxt2
+   at Program.<Main>$(String[] args) in D:\Projects\TEMP\music-studios\game-dub\games\gta5\tools\gta-patch\Program.cs:line 303
+
+--- 08:41:40 id=1026 .NET Runtime
+Application: gta-patch.exe
+CoreCLR Version: 8.0.1124.51707
+.NET Version: 8.0.11
+Description: The process was terminated due to an unhandled exception.
+Exception Info: System.IO.FileNotFoundException: update.rpf\x64\patch\data\lang${l}_rel.rpf\global.gxt2
+   at Program.<Main>$(String[] args) in D:\Projects\TEMP\music-studios\game-dub\games\gta5\tools\gta-patch\Program.cs:line 303
+
+--- 08:41:34 id=1026 .NET Runtime
+Application: gta-patch.exe
+CoreCLR Version: 8.0.1124.51707
+.NET Version: 8.0.11
+Description: The process was terminated due to an unhandled exception.
+Exception Info: System.IO.FileNotFoundException: update.rpf\x64\patch\data\lang${l}_rel.rpf\global.gxt2
+   at Program.<Main>$(String[] args) in D:\Projects\TEMP\music-studios\game-dub\games\gta5\tools\gta-patch\Program.cs:line 303
+
+--- 08:41:34 id=1026 .NET Runtime
+Application: gta-patch.exe
+CoreCLR Version: 8.0.1124.51707
+.NET Version: 8.0.11
+Description: The process was terminated due to an unhandled exception.
+Exception Info: System.IO.FileNotFoundException: update.rpf\x64\patch\data\lang${l}_rel.rpf\global.gxt2
+   at Program.<Main>$(String[] args) in D:\Projects\TEMP\music-studios\game-dub\games\gta5\tools\gta-patch\Program.cs:line 303
+
+--- 08:40:09 id=1000 Application Error
+Имя сбойного приложения: gta-patch.exe, версия: 1.0.0.0, метка времени: 0x67115f21
+Имя сбойного модуля: KERNELBASE.dll, версия: 10.0.26100.1882, метка времени: 0xdebc683b
+Код исключения: 0xe0434352
+Смещение ошибки: 0x00000000000c83ea
+Идентификатор сбойного процесса: 0x9270
+Время запуска сбойного приложения: 0x1DD5DF9F7CACB26
+Путь сбойного приложения: G:\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\GtaRadio\tools\gta-patch\gta-patch.exe
+Путь сбойного модуля: C:\Windows\System32\KERNELBASE.dll
+Идентификатор отчета: 75fa2da6-ea66-4889-8f9c-7f889367b943
+Полное имя сбойного пакета: 
+Код приложения, связанного со сбойным пакетом: 
+--- 08:40:09 id=1026 .NET Runtime
+Application: gta-patch.exe
+CoreCLR Version: 8.0.1124.51707
+.NET Version: 8.0.11
+Description: The process was terminated due to an unhandled exception.
+Exception Info: System.IO.FileNotFoundException: x64/patch/data/lang/american_rel.rpf/global.gxt2
+   at Program.<Main>$(String[] args) in D:\Projects\TEMP\music-studios\game-dub\games\gta5\tools\gta-patch\Program.cs:line 303
+
+--- 08:38:59 id=1026 .NET Runtime
+Application: gta-patch.exe
+CoreCLR Version: 8.0.1124.51707
+.NET Version: 8.0.11
+Description: The process was terminated due to an unhandled exception.
+Exception Info: System.IO.FileNotFoundException: x64/patch/data/lang/russian_rel.rpf/global.gxt2
+   at Program.<Main>$(String[] args) in D:\Projects\TEMP\music-studios\game-dub\games\gta5\tools\gta-patch\Program.cs:line 303
+
+--- 08:38:55 id=1026 .NET Runtime
+Application: gta-patch.exe
+CoreCLR Version: 8.0.1124.51707
+.NET Version: 8.0.11
+Description: The process was terminated due to an unhandled exception.
+Exception Info: System.IO.FileNotFoundException: Could not find file 'D:\g\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\mods\update\update.rpf'.
+File name: 'D:\g\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\mods\update\update.rpf'
+   at System.IO.FileInfo.get_Length()
+   at CodeWalker.GameFiles.RpfFile..ctor(String fpath, String relpath) in D:\Projects\_tools\CodeWalker\CodeWalker.Core\GameFiles\RpfFile.cs:line 67
+   at Program.<Main>$(String[] args) in D:\Projects\TEMP\music-studios\game-dub\games\gta5\tools\gta-patch\Program.cs:line 296
+
+--- 08:38:52 id=1026 .NET Runtime
+Application: gta-patch.exe
+CoreCLR Version: 8.0.1124.51707
+.NET Version: 8.0.11
+Description: The process was terminated due to an unhandled exception.
+Exception Info: System.IO.DirectoryNotFoundException: Could not find a part of the path 'D:\g\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\gta5_enhanced.exe'.
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.CreateFile(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options)
+   at Microsoft.Win32.SafeHandles.SafeFileHandle.Open(String fullPath, FileMode mode, FileAccess access, FileShare share, FileOptions options, Int64 preallocationSize, Nullable`1 unixCreateMode)
+   at System.IO.File.ReadAllBytes(String path)
+   at CodeWalker.GameFiles.GTA5Keys.UseMagicData(String path, Boolean gen9, String key) in D:\Projects\_tools\CodeWalker\CodeWalker.Core\GameFiles\Utils\GTAKeys.cs:line 254
+   at CodeWalker.GameFiles.GTA5Keys.LoadFromPath(String path, Boolean gen9, String key) in D:\Projects\_tools\CodeWalker\CodeWalker.Core\GameFiles\Utils\GTAKeys.cs:line 178
+   at Program.<<Main>$>g__LoadKeys|0_0(String game) in D:\Projects\TEMP\music-studios\game-dub\games\gta5\tools\gta-patch\Program.cs:line 692
+   at Program.<Main>$(String[] args) in D:\Projects\TEMP\music-studios\game-dub\games\gta5\tools\gta-patch\Program.cs:line 5
+
+
+==== CrashDumps / WER
+gta-patch.exe.37488.dmp 08:40:09 4287068
