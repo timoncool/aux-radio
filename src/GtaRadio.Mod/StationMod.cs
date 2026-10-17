@@ -355,7 +355,14 @@ namespace GtaRadio.Mod
             }
         }
 
-        /// <summary>Центр колеса: метки текущего (замороженного) трека Pop -> наши метки с треком плеера.</summary>
+        /// <summary>
+        /// Центр колеса: артист/трек текущего (замороженного) трека Pop заменяются треком плеера.
+        /// Способ 1 (Redirect): метки "<id>A"/"<id>S" перенаправляются на свои GTARADIO_ARTIST/TITLE
+        /// (SHVDN Enhanced AddCustomGxtEntry), туда пишется текст. Проверка — чтением "<id>A" так же,
+        /// как читает игра. Если не сработало (например, метки трека в другой таблице текстов),
+        /// способ 2 (Direct): текст пишется прямо в метки трека Pop (Game.SetLocalizedString,
+        /// длина ограничена исходной строкой), исходный текст возвращается вне эфира.
+        /// </summary>
         private void UpdateWheel()
         {
             if (_link == null || !_link.AgentAlive) return;
@@ -373,24 +380,109 @@ namespace GtaRadio.Mod
                 string key = id.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 if (Game.GetLocalizedString(key + "A").Length == 0)
                     key = unchecked((uint)id).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                _wheelKey = key;
                 _wheelA = Joaat(key + "A");
                 _wheelS = Joaat(key + "S");
-                // Без своих меток (установщик не дописал gxt2) — хотя бы пустая строка вместо чужого трека.
-                uint toA = _wheelLabelsPresent == true ? Joaat(ArtistLabel) : 0u;
-                uint toS = _wheelLabelsPresent == true ? Joaat(TitleLabel) : 0u;
-                Game.UpdateCustomGxtEntry(_wheelA, toA);
-                Game.UpdateCustomGxtEntry(_wheelS, toS);
+                _origA = Game.GetLocalizedString(key + "A");
+                _origS = Game.GetLocalizedString(key + "S");
                 _wheelTrackId = id;
-                Log("wheel track " + key + " -> GTA Radio labels");
+                _wheelArtist = _wheelTitle = "\u0001"; // заставить записать
+                _wheelMode = _wheelLabelsPresent == true && !_redirectFailed ? WheelMode.Redirect : WheelMode.Direct;
+                if (_wheelMode == WheelMode.Redirect)
+                {
+                    Game.UpdateCustomGxtEntry(_wheelA, Joaat(ArtistLabel));
+                    Game.UpdateCustomGxtEntry(_wheelS, Joaat(TitleLabel));
+                }
+                _wheelVerifyAt = DateTime.UtcNow.AddMilliseconds(300);
+                Log("wheel track " + key + " ('" + _origA + " - " + _origS + "') mode=" + _wheelMode);
             }
-            if (_wheelLabelsPresent != true) return;
+            if (_wheelTrackId == 0) return;
 
             string artist = _link.Artist, title = _link.Title;
             var now = DateTime.UtcNow;
-            if (artist == _wheelArtist && title == _wheelTitle && (now - _lastWheelCheck).TotalMilliseconds < 1000) return;
+            bool changed = artist != _wheelArtist || title != _wheelTitle;
+            if (!changed && (now - _lastWheelCheck).TotalMilliseconds < 1000) return;
             _lastWheelCheck = now;
-            if (WriteLabel(ArtistLabel, artist, _wheelArtist)) _wheelArtist = artist;
-            if (WriteLabel(TitleLabel, title, _wheelTitle)) _wheelTitle = title;
+
+            if (_wheelMode == WheelMode.Redirect)
+            {
+                bool a = WriteLabel(ArtistLabel, artist, _wheelArtist == "\u0001" ? "" : _wheelArtist);
+                bool t = WriteLabel(TitleLabel, title, _wheelTitle == "\u0001" ? "" : _wheelTitle);
+                if (a) _wheelArtist = artist;
+                if (t) _wheelTitle = title;
+
+                // Проверка тем же путём, каким читает колесо: текст "<id>A" должен стать нашим.
+                if (now >= _wheelVerifyAt && _wheelVerifyAt != DateTime.MinValue)
+                {
+                    _wheelVerifyAt = DateTime.MinValue;
+                    string seen = Game.GetLocalizedString(_wheelKey + "A").Trim();
+                    bool ok = artist.Length == 0 || seen == FitUtf8(artist).Trim();
+                    Log("wheel verify: write=" + a + "/" + t + " seen='" + seen + "' ok=" + ok);
+                    if (!ok)
+                    {
+                        _redirectFailed = true;
+                        ClearWheel();
+                        Log("wheel: redirect does not reach the wheel, switching to direct mode");
+                        _wheelTrackId = 0;
+                    }
+                }
+                return;
+            }
+
+            // Direct: прямо в метки трека Pop (длина — как у исходной строки).
+            if (artist != _wheelArtist)
+            {
+                Game.SetLocalizedString(unchecked((int)_wheelA), FitLength(artist, _origA));
+                _wheelArtist = artist;
+            }
+            if (title != _wheelTitle)
+            {
+                Game.SetLocalizedString(unchecked((int)_wheelS), FitLength(title, _origS));
+                _wheelTitle = title;
+            }
+            if (_wheelVerifyAt != DateTime.MinValue && now >= _wheelVerifyAt)
+            {
+                _wheelVerifyAt = DateTime.MinValue;
+                Log("wheel verify (direct): seen='" + Game.GetLocalizedString(_wheelKey + "A").Trim() + " - " +
+                    Game.GetLocalizedString(_wheelKey + "S").Trim() + "'");
+            }
+        }
+
+        private enum WheelMode { Redirect, Direct }
+        private WheelMode _wheelMode;
+        private bool _redirectFailed;
+        private string _wheelKey = "", _origA = "", _origS = "";
+        private DateTime _wheelVerifyAt = DateTime.MinValue;
+
+        private void ClearWheel()
+        {
+            if (_wheelTrackId == 0) return;
+            try
+            {
+                if (_wheelMode == WheelMode.Redirect)
+                {
+                    Game.RemoveCustomGxtEntry(_wheelA, out _);
+                    Game.RemoveCustomGxtEntry(_wheelS, out _);
+                }
+                else
+                {
+                    // Вернуть исходный текст трека Pop.
+                    Game.SetLocalizedString(unchecked((int)_wheelA), _origA);
+                    Game.SetLocalizedString(unchecked((int)_wheelS), _origS);
+                }
+            }
+            catch (Exception ex) { Log("[ERROR] wheel clear: " + ex.Message); }
+            _wheelTrackId = 0;
+        }
+
+        /// <summary>Текст под длину исходной метки в байтах UTF-8, по границе символа.</summary>
+        private static string FitLength(string text, string original)
+        {
+            int max = System.Text.Encoding.UTF8.GetByteCount(original ?? "");
+            text ??= "";
+            var enc = System.Text.Encoding.UTF8;
+            while (text.Length > 0 && enc.GetByteCount(text) > max) text = text.Substring(0, text.Length - 1);
+            return text;
         }
 
         /// <summary>
@@ -418,18 +510,6 @@ namespace GtaRadio.Mod
             Buffer.BlockCopy(bytes, 0, buf, 0, bytes.Length);
             Marshal.Copy(buf, 0, p, buf.Length);
             return true;
-        }
-
-        private void ClearWheel()
-        {
-            if (_wheelTrackId == 0) return;
-            try
-            {
-                Game.RemoveCustomGxtEntry(_wheelA, out _);
-                Game.RemoveCustomGxtEntry(_wheelS, out _);
-            }
-            catch (Exception ex) { Log("[ERROR] wheel clear: " + ex.Message); }
-            _wheelTrackId = 0;
         }
 
         /// <summary>Обрезка по границе символа: SetLocalizedString режет байты и иначе ломает кириллицу.</summary>
