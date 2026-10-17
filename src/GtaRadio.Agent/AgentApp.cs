@@ -76,7 +76,7 @@ internal sealed class AgentApp : ApplicationContext
         _tray = new NotifyIcon
         {
             Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application,
-            Text = "GTA Radio",
+            Text = "AUX Radio",
             Visible = true,
             ContextMenuStrip = new ContextMenuStrip()
         };
@@ -281,7 +281,7 @@ internal sealed class AgentApp : ApplicationContext
         }));
         m.Items.Add(new ToolStripSeparator());
         // Ручной выход: мод не перезапускает агент до конца этой игровой сессии.
-        m.Items.Add(new ToolStripMenuItem("Выключить GTA Radio до перезапуска игры", null, (_, _) => Shutdown(true)));
+        m.Items.Add(new ToolStripMenuItem("Выключить AUX Radio до перезапуска игры", null, (_, _) => Shutdown(true)));
     }
 
     private string StatusText()
@@ -300,13 +300,13 @@ internal sealed class AgentApp : ApplicationContext
 
     private void UpdateTooltip()
     {
-        string t = "GTA Radio — " + StatusText();
+        string t = "AUX Radio — " + StatusText();
         try { _tray.Text = t.Length > 63 ? t[..63] : t; } catch { }
     }
 
     private void Notify(string text)
     {
-        try { _tray.ShowBalloonTip(2500, "GTA Radio", text, ToolTipIcon.Info); } catch { }
+        try { _tray.ShowBalloonTip(2500, "AUX Radio", text, ToolTipIcon.Info); } catch { }
     }
 
     private void Shutdown(bool byUser)

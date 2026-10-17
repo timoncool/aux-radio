@@ -102,7 +102,7 @@ namespace GtaRadio.Mod
             // Первая строка — до любых нативов и звука: если дальше что-то упадёт, видно, докуда дошли.
             Log("ctor: start");
             _station = Settings.GetValue("Radio", "Station", "RADIO_02_POP");
-            _stationLabel = Settings.GetValue("Radio", "StationLabel", "GTA Radio");
+            _stationLabel = Settings.GetValue("Radio", "StationLabel", "AUX");
             var strategies = Settings.GetValue("Radio", "MuteStrategies", "Scene,Freeze").ToLowerInvariant();
             _useScene = strategies.Contains("scene");
             _useFreeze = strategies.Contains("freeze");
