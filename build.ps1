@@ -27,6 +27,12 @@ Write-Host "[1/4] mod"
 dotnet build (Join-Path $root "src\GtaRadio.Mod\GtaRadio.Mod.csproj") -c Release
 if ($LASTEXITCODE -ne 0) { throw "mod build failed" }
 
+Write-Host "[1b] probe (diagnostics)"
+dotnet build (Join-Path $root "src\GtaRadio.Probe\GtaRadio.Probe.csproj") -c Release
+if ($LASTEXITCODE -ne 0) { throw "probe build failed" }
+New-Item -ItemType Directory -Force -Path (Join-Path $root "out\probe") | Out-Null
+Copy-Item (Join-Path $root "src\GtaRadio.Probe\bin\Release\GtaRadio.Probe.dll") (Join-Path $root "out\probe") -Force
+
 Write-Host "[2/4] agent"
 dotnet publish (Join-Path $root "src\GtaRadio.Agent\GtaRadio.Agent.csproj") -c Release -r win-x64 --self-contained true `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o (Join-Path $root "out\agent")

@@ -53,6 +53,7 @@ internal sealed class AgentApp : ApplicationContext
 
     private RadioLink? _link;
     private Streamer? _streamer;
+    private LinkPlayer? _localOut;   // режим Output=Agent: поток играет сам агент
     private List<PlayerSession> _sessions = new();
     private PlayerSession? _current;
     private bool _owned;
@@ -122,6 +123,22 @@ internal sealed class AgentApp : ApplicationContext
             if (!_owned) _streamer?.Stop();
         }
 
+        // Режим Output=Agent: громкость и фильтр берём у мода; без игры вывод сам затихает (сторож).
+        if (_link.Output == RadioLink.OutputAgent && _streamer?.Running == true)
+        {
+            if (_localOut == null)
+            {
+                try { _localOut = LinkPlayer.Open(_link, false, 90); Log.W("[OK] agent output"); }
+                catch (Exception ex) { Log.W("[ERROR] agent output: " + ex.Message); }
+            }
+            if (alive) _localOut?.SetTarget(_link.Gain, _link.Cutoff);
+        }
+        else if (_localOut != null && _localOut.Silent)
+        {
+            _localOut.Dispose();
+            _localOut = null;
+        }
+
         // Команды из игры.
         int seq = _link.CmdSeq;
         if (_lastCmdSeq < 0) _lastCmdSeq = seq;
@@ -159,6 +176,7 @@ internal sealed class AgentApp : ApplicationContext
     private void EnsureStreaming()
     {
         if (_link == null || _current == null) return;
+        if (_link.Output == RadioLink.OutputRemote) return; // пульт: плеер играет сам
         _streamer ??= new Streamer(_link, _cfg.Attenuation);
         uint game = GamePid();
         uint root = ProcessTree.FindPlayerRoot(_current.AppId, game, SessionVolumes.LoudPids());
@@ -266,6 +284,7 @@ internal sealed class AgentApp : ApplicationContext
         _fast.Stop();
         _slow.Stop();
         try { _streamer?.Stop(); } catch { }
+        try { _localOut?.Dispose(); } catch { }
         SessionVolumes.RestoreAll();
         try { if (byUser) _link?.AgentBeat(RadioLink.StateUserExit, false); } catch { }
         try { _link?.Dispose(); } catch { }

@@ -31,9 +31,12 @@ namespace GtaRadio.Shared
         private const int OffPlaying = 36;            // агент: плеер играет
         private const int OffGameBeat = 40;           // мод: UTC ticks
         private const int OffOwned = 48;              // мод: эфир нужен (наша станция, в машине, игра не на паузе)
+        private const int OffGain = 52;               // мод: целевая громкость (float), для вывода из агента
         private const int OffCmdSeq = 56;             // мод: счётчик команд
         private const int OffCmd = 60;                // мод: 1 play/pause, 2 next, 3 prev
         private const int OffMetaSeq = 64;            // агент: счётчик метаданных
+        private const int OffCutoff = 68;             // мод: срез фильтра, Гц (float)
+        private const int OffOutput = 72;             // мод: 0 — поток играет игра, 1 — поток играет агент, 2 — без захвата (пульт)
         private const int OffApp = 128;               // 64 символа UTF-16
         private const int OffArtist = 256;            // 256 символов
         private const int OffTitle = 768;             // 256 символов
@@ -41,6 +44,7 @@ namespace GtaRadio.Shared
 
         public const int StateNone = 0, StateReady = 1, StateStreaming = 2, StateUserExit = 3;
         public const int CmdPlayPause = 1, CmdNext = 2, CmdPrev = 3;
+        public const int OutputGame = 0, OutputAgent = 1, OutputRemote = 2;
 
         private readonly MemoryMappedFile _map;
         private readonly MemoryMappedViewAccessor _v;
@@ -121,6 +125,17 @@ namespace GtaRadio.Shared
         public int AgentState => _v.ReadInt32(OffAgentState);
         public bool Playing => _v.ReadInt32(OffPlaying) != 0;
         public long PublishedFrames => _v.ReadInt64(OffWritePos);
+
+        public float Gain => _v.ReadSingle(OffGain);
+        public float Cutoff => _v.ReadSingle(OffCutoff);
+        public int Output => _v.ReadInt32(OffOutput);
+
+        public void SetMix(float gain, float cutoff, int output)
+        {
+            _v.Write(OffGain, gain);
+            _v.Write(OffCutoff, cutoff);
+            _v.Write(OffOutput, output);
+        }
 
         public void GameBeat(bool owned)
         {

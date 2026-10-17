@@ -70,8 +70,13 @@ namespace GtaRadio.Mod
         private readonly Keys _keyPlayPause, _keyNext, _keyPrev;
         private readonly string _agentPath;
 
-        private GamePlayer? _player;
+        private readonly int _fadeMs;
+        private readonly int _output;
+
+        private LinkPlayer? _player;
         private RadioLink? _link;
+        private bool _started;
+        private int _errors;
         private bool _owned, _holdingOff, _wasRetuning, _frozen;
         private string? _activeScene;
         private int _metaSeq = -1;
@@ -81,8 +86,15 @@ namespace GtaRadio.Mod
         private DateTime _agentMissingSince = DateTime.MinValue;
         private bool _toldNoAgent;
 
+        static StationMod()
+        {
+            Log("---- static ctor (assembly loaded by SHVDN)");
+        }
+
         public StationMod()
         {
+            // Первая строка — до любых нативов и звука: если дальше что-то упадёт, видно, докуда дошли.
+            Log("ctor: start");
             _station = Settings.GetValue("Radio", "Station", "RADIO_02_POP");
             _stationLabel = Settings.GetValue("Radio", "StationLabel", "GTA Radio");
             var strategies = Settings.GetValue("Radio", "MuteStrategies", "Scene,Freeze,VehicleOff").ToLowerInvariant();
@@ -96,7 +108,13 @@ namespace GtaRadio.Mod
             _sliderCurve = Settings.GetValue("Audio", "SliderCurve", 2.0f);
             _duckDb = Settings.GetValue("Audio", "DialogueDuckDb", -11.0f);
             _interiorCutoff = Settings.GetValue("Audio", "InteriorCutoffHz", 15000f);
-            int fadeMs = Settings.GetValue("Audio", "FadeMs", 90);
+            _fadeMs = Settings.GetValue("Audio", "FadeMs", 90);
+            // Game — поток играет игра (основной); Agent — поток играет агент (запасной);
+            // Remote — без захвата: плеер играет сам, мод глушит Pop и ставит плеер на play/pause.
+            string output = Settings.GetValue("Audio", "Output", "Game");
+            _output = output.Equals("Agent", StringComparison.OrdinalIgnoreCase) ? RadioLink.OutputAgent
+                    : output.Equals("Remote", StringComparison.OrdinalIgnoreCase) ? RadioLink.OutputRemote
+                    : RadioLink.OutputGame;
             _notify = Settings.GetValue("Display", "TrackNotifications", true);
             _dashboard = Settings.GetValue("Display", "Dashboard", true);
             _keyPlayPause = Settings.GetValue("Controls", "PlayPause", Keys.F7);
@@ -104,12 +122,7 @@ namespace GtaRadio.Mod
             _keyPrev = Settings.GetValue("Controls", "Previous", Keys.F6);
             _agentPath = Path.Combine(BaseDirectory, "..", "GtaRadio", "GtaRadio.Agent.exe");
 
-            try { _player = GamePlayer.Create(fadeMs, out var link); _link = link; }
-            catch (Exception ex) { Log("[ERROR] audio init: " + ex.Message); }
-
-            Function.Call((Hash)LOCK_RADIO_STATION, _station, false);
-            Function.Call((Hash)SET_USER_RADIO_CONTROL_ENABLED, true);
-
+            // Нативы, общая память и звук — на первом тике после загрузки (Start), не в конструкторе.
             Tick += OnTick;
             KeyDown += OnKeyDown;
             Aborted += (_, __) =>
@@ -119,7 +132,43 @@ namespace GtaRadio.Mod
                 try { _player?.Dispose(); } catch { }
             };
             Interval = 0;
-            Log("[OK] loaded, station=" + _station + " audio=" + (_player != null));
+            Log("ctor: ok, station=" + _station + " output=" + output);
+        }
+
+        private void Start()
+        {
+            _started = true;
+            Log("start: game loaded");
+            try
+            {
+                int rate = 48000;
+                if (_output == RadioLink.OutputGame)
+                {
+                    try { rate = LinkPlayer.DeviceSampleRate(); }
+                    catch (Exception ex) { Log("[ERROR] device: " + ex.Message); }
+                }
+                _link = RadioLink.Create(rate);
+                Log("start: link ok, rate=" + rate);
+            }
+            catch (Exception ex) { Log("[ERROR] link: " + ex); }
+
+            if (_link != null && _output == RadioLink.OutputGame)
+            {
+                try
+                {
+                    _player = LinkPlayer.Open(_link, false, _fadeMs);
+                    Log("start: audio ok (game output)");
+                }
+                catch (Exception ex) { Log("[ERROR] audio: " + ex); }
+            }
+
+            try
+            {
+                Function.Call((Hash)LOCK_RADIO_STATION, _station, false);
+                Function.Call((Hash)SET_USER_RADIO_CONTROL_ENABLED, true);
+            }
+            catch (Exception ex) { Log("[ERROR] radio natives: " + ex.Message); }
+            Log("[OK] loaded, station=" + _station + " audio=" + (_player != null) + " output=" + _output);
         }
 
         private static Vehicle? CurrentVehicle()
@@ -137,6 +186,21 @@ namespace GtaRadio.Mod
         }
 
         private void OnTick(object sender, EventArgs e)
+        {
+            if (!_started)
+            {
+                if (Game.IsLoading || Game.Player.Character == null || !Game.Player.Character.Exists()) return;
+                Start();
+            }
+            try { Frame(); }
+            catch (Exception ex)
+            {
+                // Исключение из Tick остановило бы скрипт: пишем первые 20 и продолжаем.
+                if (_errors++ < 20) Log("[ERROR] tick: " + ex);
+            }
+        }
+
+        private void Frame()
         {
             var veh = CurrentVehicle();
             bool retuning = Function.Call<bool>((Hash)IS_RADIO_RETUNING);
@@ -160,7 +224,9 @@ namespace GtaRadio.Mod
             float gain = 0f, cutoff = 22050f;
             bool audible = false;
             if (_owned && veh != null) audible = Mix(veh, retuning, out gain, out cutoff);
-            _player?.SetTarget(gain * (float)Math.Pow(10, _volumeDb / 20.0), cutoff);
+            float level = gain * (float)Math.Pow(10, _volumeDb / 20.0);
+            _player?.SetTarget(level, cutoff);
+            _link?.SetMix(level, cutoff, _output);
             // Агенту — «эфир нужен»: вне машины, в паузе, на катсцене, без двигателя плеер через 1.2 с на паузе.
             _link?.GameBeat(audible || _owned && veh != null && retuning);
 

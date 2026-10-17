@@ -19,5 +19,6 @@
     </Reference>
     <Reference Include="System.Windows.Forms" />
     <Compile Include="..\Shared\RadioLink.cs" Link="Shared\RadioLink.cs" />
+    <Compile Include="..\Shared\LinkPlayer.cs" Link="Shared\LinkPlayer.cs" />
   </ItemGroup>
 </Project>

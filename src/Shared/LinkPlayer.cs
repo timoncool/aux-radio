@@ -5,14 +5,15 @@ using NAudio.CoreAudioApi;
 using NAudio.Dsp;
 using NAudio.Wave;
 
-namespace GtaRadio.Mod
+namespace GtaRadio.Shared
 {
     /// <summary>
-    /// Проигрывание потока агента из процесса игры (сессия звука — сама GTA V).
-    /// Громкость/фильтр приходят из игры каждый кадр; плавные переходы и сторож «игра не тикает»
+    /// Проигрывание кольца RadioLink через WASAPI устройства по умолчанию.
+    /// Основной режим — из процесса игры (мод); запасной — из агента (Output=Agent в ini мода).
+    /// Громкость/фильтр задаются каждый кадр; плавные переходы и сторож «игра не тикает»
     /// — как в XAudioPlayer у MichonGoddijn231849/gta-spotify-radio.
     /// </summary>
-    internal sealed class GamePlayer : ISampleProvider, IDisposable
+    public sealed class LinkPlayer : ISampleProvider, IDisposable
     {
         private const int TargetLatencyMs = 80;
         private const int MaxLatencyMs = 250;
@@ -37,9 +38,12 @@ namespace GtaRadio.Mod
         public WaveFormat WaveFormat { get; }
         public bool Silent => _gain <= 0f && _targetGain <= 0f;
 
-        private GamePlayer(RadioLink link, MMDevice dev, WaveFormat mix, int fadeMs)
+        private readonly bool _ownsLink;
+
+        private LinkPlayer(RadioLink link, bool ownsLink, MMDevice dev, WaveFormat mix, int fadeMs)
         {
             _link = link;
+            _ownsLink = ownsLink;
             _rate = mix.SampleRate;
             _channels = mix.Channels;
             _stereo = new float[_rate * RadioLink.Channels];
@@ -52,17 +56,22 @@ namespace GtaRadio.Mod
             Beat();
         }
 
-        /// <summary>Устройство по умолчанию — туда же, куда играет сама игра.</summary>
-        public static GamePlayer Create(int fadeMs, out RadioLink link)
+        /// <summary>Частота устройства по умолчанию (туда же играет игра) — на ней агент и захватывает.</summary>
+        public static int DeviceSampleRate()
+        {
+            using (var en = new MMDeviceEnumerator())
+                return en.GetDefaultAudioEndpoint(DataFlow.Render, Role.Console).AudioClient.MixFormat.SampleRate;
+        }
+
+        /// <summary>Открыть вывод на устройство по умолчанию. ownsLink — закрыть link при Dispose.</summary>
+        public static LinkPlayer Open(RadioLink link, bool ownsLink, int fadeMs)
         {
             var en = new MMDeviceEnumerator();
             var dev = en.GetDefaultAudioEndpoint(DataFlow.Render, Role.Console);
-            var mix = dev.AudioClient.MixFormat;
-            link = RadioLink.Create(mix.SampleRate);
-            return new GamePlayer(link, dev, mix, fadeMs);
+            return new LinkPlayer(link, ownsLink, dev, dev.AudioClient.MixFormat, fadeMs);
         }
 
-        /// <summary>Вызывается каждый кадр со скрипт-потока.</summary>
+        /// <summary>Вызывается каждый кадр (мод) или каждые 50 мс (агент); без вызовов вывод затихает.</summary>
         public void SetTarget(float gain, float cutoff)
         {
             _targetGain = Math.Max(0f, gain);
@@ -131,7 +140,7 @@ namespace GtaRadio.Mod
         {
             try { _out.Stop(); } catch { }
             try { _out.Dispose(); } catch { }
-            try { _link.Dispose(); } catch { }
+            if (_ownsLink) try { _link.Dispose(); } catch { }
         }
 
         /// <summary>Отдаёт поток в формате устройства (float32, те же каналы и частота), без ресемплера.</summary>

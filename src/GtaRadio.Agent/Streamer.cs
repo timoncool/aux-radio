@@ -40,7 +40,12 @@ internal sealed class Streamer : IDisposable
         Stop();
         Error = "";
         _gamePid = gamePid;
+        // Частота захвата = частота того, кто играет: устройство игры (пишет мод) или устройство агента.
         int rate = _link.SampleRate > 8000 ? _link.SampleRate : 48000;
+        if (_link.Output == RadioLink.OutputAgent)
+        {
+            try { rate = LinkPlayer.DeviceSampleRate(); } catch (Exception ex) { Log.W("[ERROR] device rate: " + ex.Message); }
+        }
 
         ProcessLoopback.Handle? cap = null;
         string err = "";
