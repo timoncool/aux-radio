@@ -1,0 +1,152 @@
+﻿GTA Radio diag, label=T2b, 2026-10-17 09:41:08
+
+==== processes
+GTA5_Enhanced pid=31488 start=17.10.2026 9:23:27
+GtaRadio.Agent pid=28560 start=17.10.2026 9:24:05
+PlayGTAV pid=36424 start=17.10.2026 9:23:26
+
+==== game root (asi/dll/ini/txt)
+amd_ags_x64.dll                          2026-10-05 13:31  177128
+amd_fidelityfx_dx12.dll                  2026-10-05 13:31  6675664
+args.txt                                 2026-10-17 07:59  17
+bink2w64.dll                             2026-10-05 13:31  394960
+dinput8.dll                              2026-10-17 07:59  131072
+dstorage.dll                             2026-10-05 13:53  206880
+dstoragecore.dll                         2026-10-05 13:53  1468960
+fvad.dll                                 2026-10-05 13:53  34280
+GFSDK_Aftermath_Lib.x64.dll              2026-10-05 13:53  5148256
+libcurl.dll                              2026-10-05 13:34  545256
+libtox.dll                               2026-10-05 13:34  269800
+MinHook.x64.dll                          2026-10-17 09:15  16384
+nvngx_dlss.dll                           2026-10-05 13:46  29981808
+nvngx_dlssg.dll                          2026-10-05 13:33  7509024
+oo2core_5_win64.dll                      2026-10-05 13:33  945640
+opus.dll                                 2026-10-05 13:33  407016
+opusenc.dll                              2026-10-05 13:33  59368
+RageOpenV.asi                            2026-10-10 09:19  134144
+RageOpenV.ini                            2026-10-10 09:19  81
+RUNE64.dll                               2026-10-08 06:51  3807232
+ScriptHookV.dll                          2026-10-17 07:59  1987072
+ScriptHookVDotNet.asi                    2026-10-17 09:15  296960
+ScriptHookVDotNet.ini                    2026-10-17 09:15  1955
+ScriptHookVDotNet3.dll                   2026-10-17 09:15  1437696
+sl.common.dll                            2026-10-08 06:51  674432
+sl.dlss.dll                              2026-10-08 06:51  240256
+sl.dlss_g.dll                            2026-10-08 06:51  456320
+sl.interposer.dll                        2026-10-08 06:51  557184
+sl.pcl.dll                               2026-10-08 06:51  176256
+sl.reflex.dll                            2026-10-08 06:51  200320
+socialclub.dll                           2026-10-08 06:51  4824184
+socialclub_emu.ini                       2026-10-08 07:14  220
+steam_api64.dll                          2026-10-08 06:51  300392
+StraightToStoryMode.asi                  2026-10-08 07:15  42496
+version.dll                              2026-10-08 06:51  392824
+XCurl.dll                                2026-10-05 13:37  198240
+xinput1_4.dll                            2026-10-17 07:59  133632
+zlib1.dll                                2026-10-05 13:37  99304
+
+==== scripts
+\scripts\GtaRadio.Mod.dll                                    2026-10-17 08:56  23040
+\scripts\GtaRadio.Mod.ini                                    2026-10-17 09:23  2771
+\scripts\NAudio.Core.dll                                     2023-09-04 22:49  187904
+\scripts\NAudio.Wasapi.dll                                   2023-09-04 22:49  179200
+
+==== SHVDN Enhanced 1.1.0.6: files vs official release (sha256)
+ScriptHookVDotNet2.dll   MISSING
+ScriptHookVDotNet.ini    OK
+ScriptHookVDotNet3.dll   OK
+ScriptHookVDotNet.asi    OK
+MinHook.x64.dll          OK
+
+==== ScriptHookVDotNet.log writable by this user?
+attributes: Archive
+append: FAILED Исключение при вызове "Open" с "4" аргументами: "Процесс не может получить доступ к файлу "G:\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\ScriptHookVDotNet.log", так как этот файл используется другим процессом."
+acl: BUILTIN\Администраторы Allow FullControl
+acl: NT AUTHORITY\СИСТЕМА Allow FullControl
+acl: NT AUTHORITY\Прошедшие проверку Allow Modify, Synchronize
+acl: BUILTIN\Пользователи Allow ReadAndExecute, Synchronize
+game dir write: OK
+this shell elevated: True
+
+==== VC++ 2015-2022 x64 runtime
+installed=1 version=v14.51.36247.00
+.NET Framework release: 533320
+
+==== rpf
+G:\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\mods\update\update.rpf  2026-10-17 08:59:05  3122517504 bytes
+G:\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\update\update.rpf  2026-10-05 13:58:25  3122239488 bytes
+
+==== ScriptHookV.log (tail 40)
+G:\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\ScriptHookV.log  2026-10-17 09:23:28  340 bytes
+// GTA V SCRIPT HOOK (build Jul 15 2026, v3889.0/1158.13)
+//          (C) Alexander Blade 2015-2026
+[09:23:28] INIT: Started
+[09:23:28] INIT: Pool 2 extended
+[09:23:28] INIT: Pool 4 extended
+[09:23:28] INIT: Success, game version is VER_EN_1_0_1158_13
+[09:23:28] INIT: Registering script 'ScriptHookVDotNet.asi' (0x00007FFD42EC1B70)
+
+==== ScriptHookVDotNet.log (tail 80)
+G:\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\ScriptHookVDotNet.log  2026-10-17 09:16:13  1050 bytes
+[09:16:08] [INFO] ScriptHookV .Net Enhanced 3.9.0.6 (1.1.0.6)
+[09:16:08] [DEBUG] Loading API from .\ScriptHookVDotNet2.dll ...
+[09:16:08] [DEBUG] Loading API from .\ScriptHookVDotNet3.dll ...
+[09:16:08] [DEBUG] Initializing NativeMemory members...
+[09:16:11] [INFO] CreateHook: SHVNDE created the hook GxtMinHooked, of type MinHook, at 0x7FF656216B90, with OriginalTarget at 0x7FF655CD0FC0.
+[09:16:11] [INFO] CreateHook: SHVNDE created the hook UpdateSpecialFlightVehicleBonesCallHooked, of type CallHook, at 0x7FF656BAE1E4, with OriginalTarget at 0x7FF656BAF7F0, Stub at 0x7FF655CC0000.
+[09:16:13] [DEBUG] NativeMemory took 5375 milliseconds
+[09:16:13] [DEBUG] Loading scripts from G:\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\scripts ...
+[09:16:13] [DEBUG] Loading assembly NAudio.Core.dll ...
+[09:16:13] [INFO] Found no compatible scripts in NAudio.Core.dll but loaded for scripts.
+[09:16:13] [DEBUG] Loading assembly NAudio.Wasapi.dll ...
+[09:16:13] [INFO] Found no compatible scripts in NAudio.Wasapi.dll but loaded for scripts.
+
+==== probe.log
+C:\Users\user\AppData\Local\GtaRadio\probe.log  2026-10-17 09:18:15  307 bytes
+09:17:35.658 static ctor
+09:17:35.659 ctor
+09:17:35.679 first tick, loading=False
+09:17:35.679 alive ticks=1 loading=False
+09:17:45.680 alive ticks=1395 loading=False
+09:17:55.684 alive ticks=2829 loading=False
+09:18:05.685 alive ticks=4254 loading=False
+09:18:15.689 alive ticks=5687 loading=False
+
+==== mod.log
+C:\Users\user\AppData\Local\GtaRadio\mod.log  2026-10-17 09:40:30  1090 bytes
+09:19:09.950 ---- static ctor (assembly loaded by SHVDN)
+09:19:09.952 ctor: start
+09:19:09.957 ctor: ok, station=RADIO_02_POP output=Remote
+09:19:09.979 start: game loaded
+09:19:09.984 start: link ok, rate=48000
+09:19:09.987 [OK] loaded, station=RADIO_02_POP audio=False output=2
+09:19:13.013 agent started: G:\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\GtaRadio\GtaRadio.Agent.exe
+09:19:22.038 mute scene: CAR_MOD_RADIO_MUTE_SCENE
+09:21:16.924 mute scene: CAR_MOD_RADIO_MUTE_SCENE
+09:24:02.530 ---- static ctor (assembly loaded by SHVDN)
+09:24:02.532 ctor: start
+09:24:02.536 ctor: ok, station=RADIO_02_POP output=Remote
+09:24:02.558 start: game loaded
+09:24:02.562 start: link ok, rate=48000
+09:24:02.563 [OK] loaded, station=RADIO_02_POP audio=False output=2
+09:24:05.586 agent started: G:\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\GtaRadio\GtaRadio.Agent.exe
+09:24:11.033 mute scene: CAR_MOD_RADIO_MUTE_SCENE
+09:26:16.557 mute scene: CAR_MOD_RADIO_MUTE_SCENE
+09:27:28.171 mute scene: CAR_MOD_RADIO_MUTE_SCENE
+09:40:30.103 mute scene: CAR_MOD_RADIO_MUTE_SCENE
+
+==== agent.log
+C:\Users\user\AppData\Local\GtaRadio\agent.log  2026-10-17 09:24:06  159 bytes
+09:19:13.216 agent start
+09:19:14.216 game link open, rate=48000
+09:22:29.312 agent exit
+09:24:05.681 agent start
+09:24:06.679 game link open, rate=48000
+
+==== sessions.json (player volumes the agent must restore)
+C:\Users\user\AppData\Local\GtaRadio\sessions.json  (no file)
+
+==== Application event log, last 30 min
+(no events)
+
+==== CrashDumps / WER
