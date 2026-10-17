@@ -71,6 +71,10 @@ mods/update/update.rpf\x64\patch\data\lang\russian_rel.rpf\global.gxt2
 Рабочие моды (sahailee/GTA-Spotify-Radio, CiderGTA) звук не захватывают: они управляют
 плеером и показывают метаданные. Этот репозиторий идёт тем же путём.
 
-## Карта модов
+## Документация
 
-См. [docs/MODS-MAP.md](docs/MODS-MAP.md).
+- [docs/MODS-MAP.md](docs/MODS-MAP.md) — карта существующих радио-модов
+- [docs/RESEARCH.md](docs/RESEARCH.md) — весь ресёрч: GXT2, RPF, текстуры, SMTC, захват звука
+- [docs/HISTORY.md](docs/HISTORY.md) — история попыток и разбор ошибок
+- [docs/PREFERENCES.md](docs/PREFERENCES.md) — требования и предпочтения
+- [docs/BUILD.md](docs/BUILD.md) — сборка, установка, конфиг, проверка
