@@ -18,7 +18,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$GameDir,
     [string]$Label = "RADIO_02_POP",
-    [string]$Text = "GTA Radio",
+    [string]$Text = "AUX",
     [switch]$Uninstall,
     [switch]$DryRun
 )

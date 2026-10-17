@@ -15,10 +15,10 @@
 
 [Setup]
 AppId={{#AppGuid}
-AppName=GTA Radio
+AppName=AUX Radio
 AppVersion={#AppVer}
-AppVerName=GTA Radio {#AppVer} — Яндекс Музыка, Spotify и любой плеер вместо Non-Stop-Pop
-AppPublisher=GTA Radio
+AppVerName=AUX Radio {#AppVer} — Яндекс Музыка, Spotify и любой плеер вместо Non-Stop-Pop
+AppPublisher=AUX Radio
 DefaultDirName={code:DefaultGameDir}
 DirExistsWarning=no
 AppendDefaultDirName=no
@@ -30,35 +30,69 @@ ArchitecturesInstallIn64BitMode=x64compatible
 Compression=lzma2/ultra64
 SolidCompression=yes
 OutputDir=output
-OutputBaseFilename=GtaRadio_Setup_{#AppVer}
+OutputBaseFilename=AUX_Radio_Setup_{#AppVer}
 WizardStyle=modern
 WizardImageFile=art\wizard_radio.png
 WizardSmallImageFile=art\small_radio.png
 UninstallFilesDir={app}\GtaRadio\uninstall
-UninstallDisplayName=GTA Radio
+UninstallDisplayName=AUX Radio
 UninstallDisplayIcon={app}\GtaRadio\GtaRadio.Agent.exe
 SetupIconFile=..\src\GtaRadio.Agent\app.ico
 SetupLogging=yes
 
 [Languages]
 Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
+Name: "en"; MessagesFile: "compiler:Default.isl"
+
+[CustomMessages]
+ru.NoGame=В этой папке нет GTA5_Enhanced.exe. Укажите папку GTA V Enhanced.
+en.NoGame=This folder has no GTA5_Enhanced.exe. Choose the GTA V Enhanced folder.
+ru.GameRunningUnins=Игра запущена. Закройте GTA V перед удалением AUX Radio.
+en.GameRunningUnins=The game is running. Close GTA V before uninstalling AUX Radio.
+ru.StationFail=Не удалось переименовать станцию (код %1). Мод работает, но в колесе останется Non-Stop-Pop. Подробности: GtaRadio\patch_station.log
+en.StationFail=Could not rename the station (code %1). The mod works, but the wheel will keep Non-Stop-Pop. Details: GtaRadio\patch_station.log
+ru.LogoFail=Не удалось поставить логотип станции (код %1). Мод работает, логотип останется стандартным. Подробности: GtaRadio\logo_patch.log
+en.LogoFail=Could not install the station logo (code %1). The mod works, the logo stays default. Details: GtaRadio\logo_patch.log
+ru.CloseGame=Игра запущена. Закройте GTA V и нажмите «Назад», затем снова «Установить».
+en.CloseGame=The game is running. Close GTA V, press Back, then Install again.
+ru.StationStatus=Название станции: AUX Radio (с резервной копией)...
+en.StationStatus=Station name: AUX Radio (with a backup)...
+ru.LogoStatus=Логотип станции AUX Radio в колесе (с откатом)...
+en.LogoStatus=Station logo in the radio wheel (with a rollback)...
 
 [Messages]
-ru.SetupWindowTitle=Установка — GTA Radio
-ru.WelcomeLabel1=GTA Radio
-ru.WelcomeLabel2=Радиостанция Non-Stop-Pop превращается в GTA Radio: в машине играет то, что звучит у тебя в Яндекс Музыке, Spotify или любом другом плеере.%n%nГромкость следует игре: ползунок музыки, пауза, катсцены, разговоры. Вышел из машины или переключил станцию — плеер на паузе.%n%nПеревод и радио-озвучка не затрагиваются: меняется только название одной станции, с резервной копией и откатом при удалении.
+ru.SetupWindowTitle=Установка — AUX Radio
+en.SetupWindowTitle=Setup — AUX Radio
+ru.WelcomeLabel1=AUX Radio
+en.WelcomeLabel1=AUX Radio
+ru.WelcomeLabel2=Радиостанция Non-Stop-Pop превращается в AUX Radio: в машине играет то, что звучит у тебя в Яндекс Музыке, Spotify или любом другом плеере.%n%nГромкость следует игре: ползунок музыки, пауза, катсцены, разговоры. Вышел из машины или переключил станцию — плеер на паузе.%n%nПеревод и радио-озвучка не затрагиваются: меняется только название одной станции, с резервной копией и откатом при удалении.
+en.WelcomeLabel2=Non-Stop-Pop becomes AUX Radio: the car plays whatever is playing in your Spotify, Yandex Music or any other player.%n%nVolume follows the game: music slider, pause, cutscenes, conversations. Leave the car or switch the station — the player pauses.%n%nTranslations and radio voice-over are untouched: only one station name changes, with a backup and a rollback on uninstall.
 ru.SelectDirLabel3=Укажите папку GTA V Enhanced (в ней лежит GTA5_Enhanced.exe).
+en.SelectDirLabel3=Choose the GTA V Enhanced folder (it contains GTA5_Enhanced.exe).
 ru.ReadyLabel1=Будут установлены мод, агент и название станции. Перед изменениями создаются резервные копии.
+en.ReadyLabel1=The mod, the agent and the station name will be installed. Backups are made before changes.
 ru.FinishedHeadingLabel=Готово
-ru.FinishedLabel=GTA Radio установлен.%n%nВключи музыку в плеере, запусти игру, сядь в машину и выбери GTA Radio. Агент запускается вместе с игрой и закрывается после неё.%n%nВ эфире: F7 — пауза, F8 — следующий трек, F6 — предыдущий.
+en.FinishedHeadingLabel=Done
+ru.FinishedLabel=AUX Radio установлен.%n%nВключи музыку в плеере, запусти игру, сядь в машину и выбери AUX Radio. Агент запускается вместе с игрой и закрывается после неё.%n%nВ эфире: F7 — пауза, F8 — следующий трек, F6 — предыдущий.
+en.FinishedLabel=AUX Radio is installed.%n%nStart your player, launch the game, get in a car and pick AUX Radio. The agent starts with the game and closes after it.%n%nOn air: F7 — pause, F8 — next track, F6 — previous.
+ru.TypesFull=Полная установка
+en.TypesFull=Full installation
+ru.TypesCustom=Выборочная
+en.TypesCustom=Custom
+ru.CompMod=AUX Radio (мод и агент)
+en.CompMod=AUX Radio (mod and agent)
+ru.CompRename=Название станции «AUX Radio» в колесе радио
+en.CompRename=Station name "AUX Radio" in the radio wheel
+ru.CompShv=Script Hook V + ScriptHookVDotNet Enhanced (только если их ещё нет)
+en.CompShv=Script Hook V + ScriptHookVDotNet Enhanced (only if missing)
 
 [Types]
 Name: "full"; Description: "Полная установка"
 Name: "custom"; Description: "Выборочная"; Flags: iscustom
 
 [Components]
-Name: "mod"; Description: "GTA Radio (мод и агент)"; Types: full custom; Flags: fixed
-Name: "rename"; Description: "Название станции «GTA Radio» в колесе радио"; Types: full custom
+Name: "mod"; Description: "AUX Radio (мод и агент)"; Types: full custom; Flags: fixed
+Name: "rename"; Description: "Название станции «AUX Radio» в колесе радио"; Types: full custom
 Name: "shv"; Description: "Script Hook V + ScriptHookVDotNet Enhanced (только если их ещё нет)"; Types: full custom
 
 [Files]
@@ -68,6 +102,9 @@ Source: "payload\scripts\NAudio.Wasapi.dll"; DestDir: "{app}\scripts"; Component
 Source: "payload\scripts\GtaRadio.Mod.ini"; DestDir: "{app}\scripts"; Components: mod; Flags: onlyifdoesntexist uninsneveruninstall
 Source: "payload\GtaRadio\*"; DestDir: "{app}\GtaRadio"; Components: mod; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "patch_station.ps1"; DestDir: "{app}\GtaRadio\tools"; Components: mod; Flags: ignoreversion
+Source: "patch_logo.ps1"; DestDir: "{app}\GtaRadio\tools"; Components: mod; Flags: ignoreversion
+Source: "logo_payload\*"; DestDir: "{app}\GtaRadio\logo"; Components: mod; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "art\aux_status.png"; DestDir: "{app}\GtaRadio"; DestName: "logo.png"; Components: mod; Flags: ignoreversion
 ; Загрузчики: только если их нет — у игрока может быть своя (в т.ч. более новая) версия.
 Source: "payload\shv\ScriptHookV.dll"; DestDir: "{app}"; Components: shv; Flags: onlyifdoesntexist uninsneveruninstall
 Source: "payload\shv\dinput8.dll"; DestDir: "{app}"; Components: shv; Flags: onlyifdoesntexist uninsneveruninstall; Check: NeedFile('dinput8.dll')
@@ -87,6 +124,8 @@ Type: files; Name: "{app}\GtaRadio\GtaRadio.Agent.exe"
 Filename: "taskkill.exe"; Parameters: "/F /IM GtaRadio.Agent.exe"; Flags: runhidden waituntilterminated; RunOnceId: "StopAgent"
 ; Вернуть исходное название станции (только эту строку) до удаления файлов.
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\GtaRadio\tools\patch_station.ps1"" -GameDir ""{app}"" -Uninstall"; Flags: runhidden waituntilterminated; RunOnceId: "RestoreStationName"
+; Вернуть исходный логотип Pop в hud.ytd до удаления файлов.
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\GtaRadio\tools\patch_logo.ps1"" -GameDir ""{app}"" -Uninstall"; Flags: runhidden waituntilterminated; RunOnceId: "RestoreLogo"
 
 [Code]
 function DefaultGameDir(Param: String): String;
@@ -125,7 +164,7 @@ begin
   Result := True;
   if (CurPageID = wpSelectDir) and not FileExists(AddBackslash(WizardDirValue) + 'GTA5_Enhanced.exe') then
   begin
-    SuppressibleMsgBox('В этой папке нет GTA5_Enhanced.exe. Укажите папку GTA V Enhanced.', mbError, MB_OK, IDOK);
+    SuppressibleMsgBox(ExpandConstant('{cm:NoGame}'), mbError, MB_OK, IDOK);
     Result := False;
   end;
 end;
@@ -136,7 +175,7 @@ var
 begin
   Result := '';
   if IsProcessRunning('GTA5_Enhanced.exe') or IsProcessRunning('PlayGTAV.exe') then
-    Result := 'Игра запущена. Закройте GTA V и нажмите «Назад», затем снова «Установить».'
+    Result := ExpandConstant('{cm:CloseGame}')
   else if IsProcessRunning('GtaRadio.Agent.exe') then
     Exec('taskkill.exe', '/F /IM GtaRadio.Agent.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
 end;
@@ -146,7 +185,7 @@ begin
   Result := True;
   if IsProcessRunning('GTA5_Enhanced.exe') then
   begin
-    SuppressibleMsgBox('Игра запущена. Закройте GTA V перед удалением GTA Radio.', mbError, MB_OK, IDOK);
+    SuppressibleMsgBox(ExpandConstant('{cm:GameRunningUnins}'), mbError, MB_OK, IDOK);
     Result := False;
   end;
 end;
@@ -172,11 +211,18 @@ begin
   if CurStep = ssInstall then RemoveLegacy;
   if (CurStep = ssPostInstall) and WizardIsComponentSelected('rename') then
   begin
-    WizardForm.StatusLabel.Caption := 'Название станции: GTA Radio (с резервной копией)...';
+    WizardForm.StatusLabel.Caption := ExpandConstant('{cm:StationStatus}');
     if not Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -File "' +
         ExpandConstant('{app}\GtaRadio\tools\patch_station.ps1') + '" -GameDir "' + ExpandConstant('{app}') + '"',
         '', SW_HIDE, ewWaitUntilTerminated, Code) or (Code <> 0) then
-      SuppressibleMsgBox('Не удалось переименовать станцию (код ' + IntToStr(Code) + '). Мод работает, но в колесе останется Non-Stop-Pop.' + #13#10 +
-        'Подробности: ' + ExpandConstant('{app}\GtaRadio\patch_station.log'), mbError, MB_OK, IDOK);
+      SuppressibleMsgBox(ExpandConstant('{cm:StationFail,' + IntToStr(Code) + '}'), mbError, MB_OK, IDOK);
+  end;
+  if (CurStep = ssPostInstall) and WizardIsComponentSelected('mod') then
+  begin
+    WizardForm.StatusLabel.Caption := ExpandConstant('{cm:LogoStatus}');
+    if not Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -File "' +
+        ExpandConstant('{app}\GtaRadio\tools\patch_logo.ps1') + '" -GameDir "' + ExpandConstant('{app}') + '"',
+        '', SW_HIDE, ewWaitUntilTerminated, Code) or (Code <> 0) then
+      SuppressibleMsgBox(ExpandConstant('{cm:LogoFail,' + IntToStr(Code) + '}'), mbError, MB_OK, IDOK);
   end;
 end;

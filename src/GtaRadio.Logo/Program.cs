@@ -45,6 +45,7 @@ internal static class Program
                 case "export": return Export(a);
                 case "patch": return Patch(a);
                 case "put": return Put(a);
+                case "dump": return Dump(a);
             }
             Usage();
             return 2;
@@ -254,12 +255,33 @@ internal static class Program
 
     // ---------- put ----------
 
+    private static int Dump(Args a)
+    {
+        var (_, entry) = Open(a);
+        var ytd = LoadYtd(entry);
+        var outFile = a.Req("out");
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outFile))!);
+        File.WriteAllBytes(outFile, ytd.Save());
+        Console.WriteLine("[OK] dumped " + outFile + " (" + new FileInfo(outFile).Length + " b)");
+        return 0;
+    }
+
     private static int Put(Args a)
     {
         var (_, entry) = Open(a);
         byte[] data = File.ReadAllBytes(a.Req("file"));
         if (data.Length < 16 || BitConverter.ToUInt32(data, 0) != 0x37435352)
             throw new Exception("file is not an RSC7 resource (use the output of patch)");
+
+        // Таблицы NG-шифрования: без них CodeWalker падает в EncryptNG при записи в RPF.
+        var tablesDir = a.Opt("tables") ?? Path.Combine("tools", "gta-patch", "ng-cache");
+        var tablesF = Path.Combine(tablesDir, "gtav_ng_encrypt_tables.dat");
+        var lutsF = Path.Combine(tablesDir, "gtav_ng_encrypt_luts.dat");
+        if (!File.Exists(tablesF) || !File.Exists(lutsF))
+            throw new Exception("NG encrypt tables not found in " + tablesDir + " (pass --tables)");
+        GTA5Keys.PC_NG_ENCRYPT_TABLES = CryptoIO.ReadNgTables(File.ReadAllBytes(tablesF));
+        GTA5Keys.PC_NG_ENCRYPT_LUTs = CryptoIO.ReadNgLuts(File.ReadAllBytes(lutsF));
+
         var dir = entry.Parent ?? throw new Exception("entry has no parent dir");
         RpfFile.CreateFile(dir, entry.Name, data, true);
         Console.WriteLine("[OK] written " + entry.Path);

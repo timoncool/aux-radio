@@ -23,7 +23,7 @@ function Tail($p, $n) {
     if (Test-Path $p) { Get-Content $p -Tail $n -Encoding UTF8 | ForEach-Object { Line $_ } }
 }
 
-Set-Content $out ("GTA Radio diag, label={0}, {1}" -f $Label, (Get-Date -Format "yyyy-MM-dd HH:mm:ss")) -Encoding UTF8
+Set-Content $out ("AUX Radio diag, label={0}, {1}" -f $Label, (Get-Date -Format "yyyy-MM-dd HH:mm:ss")) -Encoding UTF8
 
 Section "processes"
 Get-Process -Name GTA5_Enhanced, PlayGTAV, GtaRadio.Agent, GtaRadio -ErrorAction SilentlyContinue |

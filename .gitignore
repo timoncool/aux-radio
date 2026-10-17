@@ -17,3 +17,6 @@ app/GtaRadio/payload/
 
 .hermes-tmp.*
 hermes-tmp*
+
+agent/
+installer/logo_payload/

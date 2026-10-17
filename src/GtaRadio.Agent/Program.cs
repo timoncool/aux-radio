@@ -15,7 +15,9 @@ internal static class Program
         AppDomain.CurrentDomain.ProcessExit += (_, _) => SessionVolumes.RestoreAll();
 
         ApplicationConfiguration.Initialize();
-        Application.Run(new AgentApp());
+        var app = new AgentApp();
+        if (args.Contains("--status")) app.ShowStatus();
+        Application.Run(app);
         return 0;
     }
 }

@@ -12,6 +12,10 @@ internal sealed class AgentConfig
     public float Attenuation { get; set; } = 0.001f; // громкость плеера в микшере во время эфира (-60 дБ)
     public int PauseDelayMs { get; set; } = 1200;    // как у MichonGoddijn: короткий выход со станции не ставит паузу
     public bool PauseWhenOffAir { get; set; } = true;
+    public string GithubUrl { get; set; } = "https://github.com/timoncool/aux-radio";
+    public string BoostyUrl { get; set; } = "https://boosty.to/neuro_art";
+    public string TelegramUrl { get; set; } = "https://t.me/nerual_dreming";
+    public string Language { get; set; } = "ru";   // ru | en, окно статуса
 
     private static string PathJson => System.IO.Path.Combine(Log.Dir, "agent.json");
 
@@ -77,6 +81,7 @@ internal sealed class AgentApp : ApplicationContext
             ContextMenuStrip = new ContextMenuStrip()
         };
         _tray.ContextMenuStrip.Opening += (_, _) => BuildMenu();
+        _tray.DoubleClick += (_, _) => ShowStatus();
         _fast.Tick += (_, _) => FastTick();
         _slow.Tick += async (_, _) => await SlowTick();
         _fast.Start();
@@ -231,10 +236,30 @@ internal sealed class AgentApp : ApplicationContext
         finally { _busy = false; }
     }
 
+    internal RadioLink? Link => _link;
+    internal PlayerSession? Current => _current;
+    internal List<PlayerSession> Sessions => _sessions;
+    internal AgentConfig Config => _cfg;
+    internal bool Streaming => _streamer?.Running == true;
+    internal bool GameRunning => GamePid() != 0;
+    internal string Status => StatusText();
+
+    private StatusForm? _status;
+    internal void ShowStatus()
+    {
+        if (_status == null || _status.IsDisposed)
+            _status = new StatusForm(this);
+        _status.Show();
+        _status.BringToFront();
+        _status.Activate();
+    }
+
     private void BuildMenu()
     {
         var m = _tray.ContextMenuStrip!;
         m.Items.Clear();
+        m.Items.Add(new ToolStripMenuItem("Статус…", null, (_, _) => ShowStatus()) { Font = new Font(m.Font, FontStyle.Bold) });
+        m.Items.Add(new ToolStripSeparator());
         m.Items.Add(new ToolStripMenuItem(StatusText()) { Enabled = false });
         m.Items.Add(new ToolStripSeparator());
         var src = new ToolStripMenuItem("Источник");
@@ -261,7 +286,13 @@ internal sealed class AgentApp : ApplicationContext
 
     private string StatusText()
     {
-        if (_link == null || !_link.GameAlive) return _gameSeen ? "Игра не отвечает" : "Жду GTA V";
+        if (_link == null) return _gameSeen ? "Игра не отвечает" : "Жду GTA V";
+        if (!_link.GameAlive)
+        {
+            // Игра может быть на паузе/свёрнута: процесс есть, но кадры не тикают.
+            if (GamePid() != 0) return "GTA V (пауза)";
+            return _gameSeen ? "Игра не отвечает" : "Жду GTA V";
+        }
         if (_current == null) return "Плеер не найден";
         if (_streamer?.Running == true) return "В эфире: " + _current.Name;
         return "Готов: " + _current.Name;

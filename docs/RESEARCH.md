@@ -36,12 +36,12 @@ mods/update/update.rpf\x64\patch\data\lang\russian_rel.rpf\global.gxt2   (286 24
 - строка по offset до `\0`.
 
 Метка `RADIO_02_POP` = `0xB5DD6F19`, значение `Non-Stop-Pop FM`.
-Замена на `GTA Radio` проверена извлечением:
+Замена на `AUX Radio` проверена извлечением:
 
 ```
 [OK] update.rpf\x64\patch\data\lang\american_rel.rpf\global.gxt2 written (127817 bytes)
 [OK] update.rpf\x64\patch\data\lang\russian_rel.rpf\global.gxt2 written (286242 bytes)
-verify: 'GTA Radio'
+verify: 'AUX Radio'
 ```
 
 На скриншотах пользователя название появилось.

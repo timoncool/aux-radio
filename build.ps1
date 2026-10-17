@@ -1,4 +1,4 @@
-﻿# Сборка GTA Radio: мод, агент, утилита GXT2, payload установщика и сам установщик.
+﻿# Сборка AUX Radio: мод, агент, утилита GXT2, payload установщика и сам установщик.
 #
 #   .\build.ps1 -GtaPatchDir <папка gta-patch> -ShvDir <папка с ScriptHookV/SHVDN> [-Iscc <ISCC.exe>] [-Deploy <папка игры>]
 #

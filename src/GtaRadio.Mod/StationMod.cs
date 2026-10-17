@@ -363,8 +363,11 @@ namespace GtaRadio.Mod
             ScanTrackLabels();
 
             int id = Function.Call<int>((Hash)GET_AUDIBLE_MUSIC_TRACK_TEXT_ID);
+            if (id == 1 || id == -1) id = 0; // 1 — пустая строка трека, не считаем сменой
+            if (id != _pendingId) { _pendingId = id; _pendingSince = DateTime.UtcNow; }
+            bool stable = id != 0 && (DateTime.UtcNow - _pendingSince).TotalMilliseconds >= 400;
             bool poolReady = _poolReady && !_borrowFailed;
-            if (id != 0 && id != -1 && (id != _wheelTrackId || (poolReady && _wheelMode == WheelMode.Direct)))
+            if (stable && (id != _wheelTrackId || (poolReady && _wheelMode == WheelMode.Direct)))
             {
                 ClearWheel();
                 string key = id.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -391,8 +394,8 @@ namespace GtaRadio.Mod
                 _wheelVerifyAt = DateTime.MinValue;
                 string seenA = Game.GetLocalizedString(_wheelKey + "A").Trim();
                 string seenS = Game.GetLocalizedString(_wheelKey + "S").Trim();
-                bool okA = artist.Trim().Length == 0 || seenA.Length > 0 && artist.Trim().StartsWith(seenA, StringComparison.Ordinal);
-                bool okS = title.Trim().Length == 0 || seenS.Length > 0 && title.Trim().StartsWith(seenS, StringComparison.Ordinal);
+                bool okA = artist.Trim().Length == 0 || seenA == artist.Trim();
+                bool okS = title.Trim().Length == 0 || seenS == title.Trim();
                 Log("wheel verify mode=" + _wheelMode + " seen='" + seenA + " - " + seenS + "' ok=" + (okA && okS) +
                     (_wheelMode == WheelMode.Borrow ? " labels=" + _slotA.Key + "/" + _slotS.Key : ""));
                 if (_wheelMode == WheelMode.Borrow && !(okA && okS))
@@ -413,6 +416,8 @@ namespace GtaRadio.Mod
         private enum WheelMode { Borrow, Direct }
         private struct Label { public uint Hash; public string Text; public string Key; public int Bytes; }
         private WheelMode _wheelMode;
+        private int _pendingId;
+        private DateTime _pendingSince = DateTime.MinValue;
         private string _wheelKey = "", _origA = "", _origS = "";
         private DateTime _wheelVerifyAt = DateTime.MinValue;
         private Label _slotA, _slotS;                       // занятые сейчас метки (Hash=0 — нет)
