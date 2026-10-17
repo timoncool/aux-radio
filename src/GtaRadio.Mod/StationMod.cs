@@ -1,7 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GTA;
 using GTA.Native;
@@ -61,14 +61,7 @@ namespace GtaRadio.Mod
         private const ulong SCALEFORM_MOVIE_METHOD_ADD_PARAM_PLAYER_NAME_STRING = 0xE83A3E3557A56640;
         private const ulong END_SCALEFORM_MOVIE_METHOD = 0xC6796A8FFA375E53;
         private const ulong GET_AUDIBLE_MUSIC_TRACK_TEXT_ID = 0x50B196FC9ED6545B;
-        private const ulong GET_FILENAME_FOR_AUDIO_CONVERSATION = 0x7B5280EBA9840C72; // текст метки (const char*)
 
-        // Свои метки в global.gxt2 (добавляет установщик): сюда пишется артист и трек плеера,
-        // а метки трека Pop ("<id>A" / "<id>S") перенаправляются на них через SHVDN Enhanced
-        // (Game.AddCustomGxtEntry) — так центр колеса показывает трек плеера.
-        private const string ArtistLabel = "GTARADIO_ARTIST";
-        private const string TitleLabel = "GTARADIO_TITLE";
-        private const int LabelBytes = 127;
 
         // Настройки: scripts\GtaRadio.Mod.ini
         private readonly string _station;
@@ -98,8 +91,6 @@ namespace GtaRadio.Mod
         private int _wheelTrackId;
         private uint _wheelA, _wheelS;
         private string _wheelArtist = "", _wheelTitle = "";
-        private bool? _wheelLabelsPresent;
-        private DateTime _lastWheelCheck = DateTime.MinValue;
 
         static StationMod()
         {
@@ -356,25 +347,25 @@ namespace GtaRadio.Mod
         }
 
         /// <summary>
-        /// Центр колеса: артист/трек текущего (замороженного) трека Pop заменяются треком плеера.
-        /// Способ 1 (Redirect): метки "<id>A"/"<id>S" перенаправляются на свои GTARADIO_ARTIST/TITLE
-        /// (SHVDN Enhanced AddCustomGxtEntry), туда пишется текст. Проверка — чтением "<id>A" так же,
-        /// как читает игра. Если не сработало (например, метки трека в другой таблице текстов),
-        /// способ 2 (Direct): текст пишется прямо в метки трека Pop (Game.SetLocalizedString,
-        /// длина ограничена исходной строкой), исходный текст возвращается вне эфира.
+        /// Центр колеса: артист/трек текущего (замороженного) трека Pop -> трек плеера.
+        ///
+        /// Колесо читает метки "<id>A"/"<id>S" из таблицы треков (trackid.gxt2), а хук SHVDN Enhanced
+        /// (AddCustomGxtEntry) ищет подменённый хеш в той же таблице (DEEPSEEK-RESULT-5). Поэтому:
+        /// Borrow — один раз находим в этой таблице две самые длинные метки треков, на время эфира
+        ///          перенаправляем на них метки трека Pop и пишем туда трек плеера (вместимость — длина
+        ///          найденных строк), вне эфира возвращаем их исходный текст;
+        /// Direct — пока поиск не закончен или если Borrow не сработал: пишем прямо в метки трека Pop
+        ///          (вместимость — длина его строк).
+        /// После записи — проверка чтением "<id>A" так же, как читает игра.
         /// </summary>
         private void UpdateWheel()
         {
             if (_link == null || !_link.AgentAlive) return;
-            if (_wheelLabelsPresent == null)
-            {
-                _wheelLabelsPresent = Game.GetLocalizedString(unchecked((int)Joaat(ArtistLabel))).Length > 0 &&
-                                      Game.GetLocalizedString(unchecked((int)Joaat(TitleLabel))).Length > 0;
-                Log("wheel labels present: " + _wheelLabelsPresent);
-            }
+            ScanBorrowLabels();
 
             int id = Function.Call<int>((Hash)GET_AUDIBLE_MUSIC_TRACK_TEXT_ID);
-            if (id != 0 && id != -1 && id != _wheelTrackId)
+            bool wantBorrow = _borrowReady && !_borrowFailed;
+            if (id != 0 && id != -1 && (id != _wheelTrackId || (wantBorrow && _wheelMode == WheelMode.Direct)))
             {
                 ClearWheel();
                 string key = id.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -387,11 +378,11 @@ namespace GtaRadio.Mod
                 _origS = Game.GetLocalizedString(key + "S");
                 _wheelTrackId = id;
                 _wheelArtist = _wheelTitle = "\u0001"; // заставить записать
-                _wheelMode = _wheelLabelsPresent == true && !_redirectFailed ? WheelMode.Redirect : WheelMode.Direct;
-                if (_wheelMode == WheelMode.Redirect)
+                _wheelMode = wantBorrow && _borrowA.Hash != _wheelA && _borrowS.Hash != _wheelS ? WheelMode.Borrow : WheelMode.Direct;
+                if (_wheelMode == WheelMode.Borrow)
                 {
-                    Game.UpdateCustomGxtEntry(_wheelA, Joaat(ArtistLabel));
-                    Game.UpdateCustomGxtEntry(_wheelS, Joaat(TitleLabel));
+                    Game.UpdateCustomGxtEntry(_wheelA, _borrowA.Hash);
+                    Game.UpdateCustomGxtEntry(_wheelS, _borrowS.Hash);
                 }
                 _wheelVerifyAt = DateTime.UtcNow.AddMilliseconds(300);
                 Log("wheel track " + key + " ('" + _origA + " - " + _origS + "') mode=" + _wheelMode);
@@ -399,74 +390,116 @@ namespace GtaRadio.Mod
             if (_wheelTrackId == 0) return;
 
             string artist = _link.Artist, title = _link.Title;
-            var now = DateTime.UtcNow;
-            bool changed = artist != _wheelArtist || title != _wheelTitle;
-            if (!changed && (now - _lastWheelCheck).TotalMilliseconds < 1000) return;
-            _lastWheelCheck = now;
-
-            if (_wheelMode == WheelMode.Redirect)
-            {
-                bool a = WriteLabel(ArtistLabel, artist, _wheelArtist == "\u0001" ? "" : _wheelArtist);
-                bool t = WriteLabel(TitleLabel, title, _wheelTitle == "\u0001" ? "" : _wheelTitle);
-                if (a) _wheelArtist = artist;
-                if (t) _wheelTitle = title;
-
-                // Проверка тем же путём, каким читает колесо: текст "<id>A" должен стать нашим.
-                if (now >= _wheelVerifyAt && _wheelVerifyAt != DateTime.MinValue)
-                {
-                    _wheelVerifyAt = DateTime.MinValue;
-                    string seen = Game.GetLocalizedString(_wheelKey + "A").Trim();
-                    bool ok = artist.Length == 0 || seen == FitUtf8(artist).Trim();
-                    Log("wheel verify: write=" + a + "/" + t + " seen='" + seen + "' ok=" + ok);
-                    if (!ok)
-                    {
-                        _redirectFailed = true;
-                        ClearWheel();
-                        Log("wheel: redirect does not reach the wheel, switching to direct mode");
-                        _wheelTrackId = 0;
-                    }
-                }
-                return;
-            }
-
-            // Direct: прямо в метки трека Pop (длина — как у исходной строки).
             if (artist != _wheelArtist)
             {
-                Game.SetLocalizedString(unchecked((int)_wheelA), FitLength(artist, _origA));
+                if (_wheelMode == WheelMode.Borrow) Game.SetLocalizedString(unchecked((int)_borrowA.Hash), Centered(artist, _borrowA.Text));
+                else Game.SetLocalizedString(unchecked((int)_wheelA), Centered(artist, _origA));
                 _wheelArtist = artist;
             }
             if (title != _wheelTitle)
             {
-                Game.SetLocalizedString(unchecked((int)_wheelS), FitLength(title, _origS));
+                if (_wheelMode == WheelMode.Borrow) Game.SetLocalizedString(unchecked((int)_borrowS.Hash), Centered(title, _borrowS.Text));
+                else Game.SetLocalizedString(unchecked((int)_wheelS), Centered(title, _origS));
                 _wheelTitle = title;
             }
-            if (_wheelVerifyAt != DateTime.MinValue && now >= _wheelVerifyAt)
+
+            if (_wheelVerifyAt != DateTime.MinValue && DateTime.UtcNow >= _wheelVerifyAt)
             {
                 _wheelVerifyAt = DateTime.MinValue;
-                Log("wheel verify (direct): seen='" + Game.GetLocalizedString(_wheelKey + "A").Trim() + " - " +
-                    Game.GetLocalizedString(_wheelKey + "S").Trim() + "'");
+                string seenA = Game.GetLocalizedString(_wheelKey + "A").Trim();
+                string seenS = Game.GetLocalizedString(_wheelKey + "S").Trim();
+                bool ok = artist.Length == 0 || artist.StartsWith(seenA, StringComparison.Ordinal) && seenA.Length > 0;
+                Log("wheel verify mode=" + _wheelMode + " seen='" + seenA + " - " + seenS + "' ok=" + ok);
+                if (!ok && _wheelMode == WheelMode.Borrow)
+                {
+                    // Пара могла оказаться в другой таблице (треки DLC) — пробуем следующую.
+                    ClearWheel();
+                    if (!PickBorrowPair(_borrowPair + 1))
+                    {
+                        _borrowFailed = true;
+                        Log("wheel: borrow does not reach the wheel, direct mode");
+                    }
+                }
             }
         }
 
-        private enum WheelMode { Redirect, Direct }
+        private enum WheelMode { Borrow, Direct }
+        private struct Borrowed { public uint Hash; public string Text; public string Key; }
         private WheelMode _wheelMode;
-        private bool _redirectFailed;
         private string _wheelKey = "", _origA = "", _origS = "";
         private DateTime _wheelVerifyAt = DateTime.MinValue;
+        private Borrowed _borrowA, _borrowS;
+        private bool _borrowReady, _borrowFailed;
+        private int _borrowPair;
+        private int _scanN = 1;
+        private readonly List<Borrowed> _scanTop = new List<Borrowed>();
+        private const int ScanMax = 40000, ScanPerFrame = 300;
+
+        /// <summary>
+        /// Поиск двух самых длинных меток треков ("<n>A"/"<n>S") в таблице треков — понемногу за кадр,
+        /// чтобы не было подвисания. Метки текущего трека Pop не берём.
+        /// </summary>
+        private void ScanBorrowLabels()
+        {
+            if (_borrowReady || _borrowFailed) return;
+            var enc = System.Text.Encoding.UTF8;
+            int end = Math.Min(ScanMax, _scanN + ScanPerFrame);
+            for (; _scanN < end; _scanN++)
+            {
+                string n = _scanN.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                foreach (var suffix in new[] { "A", "S" })
+                {
+                    string key = n + suffix;
+                    string text = Game.GetLocalizedString(key);
+                    if (text.Length == 0) continue;
+                    int bytes = enc.GetByteCount(text);
+                    if (_scanTop.Count < 8 || bytes > enc.GetByteCount(_scanTop[_scanTop.Count - 1].Text))
+                    {
+                        _scanTop.Add(new Borrowed { Hash = Joaat(key), Text = text, Key = key });
+                        _scanTop.Sort((x, y) => enc.GetByteCount(y.Text).CompareTo(enc.GetByteCount(x.Text)));
+                        if (_scanTop.Count > 8) _scanTop.RemoveAt(_scanTop.Count - 1);
+                    }
+                }
+            }
+            if (_scanN < ScanMax) return;
+
+            _borrowReady = true;
+            if (!PickBorrowPair(0))
+            {
+                _borrowFailed = true;
+                Log("wheel borrow: not enough track labels found, direct mode");
+            }
+        }
+
+        /// <summary>Пара самых длинных меток (не из текущего трека): 0 — первая и вторая, 1 — третья и четвёртая...</summary>
+        private bool PickBorrowPair(int pair)
+        {
+            var enc = System.Text.Encoding.UTF8;
+            var pick = _scanTop.FindAll(b => b.Hash != _wheelA && b.Hash != _wheelS);
+            if (pair > 2 || pick.Count < pair * 2 + 2) return false;
+            _borrowPair = pair;
+            _borrowA = pick[pair * 2];
+            _borrowS = pick[pair * 2 + 1];
+            Log("wheel borrow pair " + pair + ": " + _borrowA.Key + " (" + enc.GetByteCount(_borrowA.Text) + " b), " +
+                _borrowS.Key + " (" + enc.GetByteCount(_borrowS.Text) + " b)");
+            return true;
+        }
 
         private void ClearWheel()
         {
             if (_wheelTrackId == 0) return;
             try
             {
-                if (_wheelMode == WheelMode.Redirect)
+                if (_wheelMode == WheelMode.Borrow)
                 {
                     Game.RemoveCustomGxtEntry(_wheelA, out _);
                     Game.RemoveCustomGxtEntry(_wheelS, out _);
+                    // Вернуть исходный текст одолженных меток.
+                    Game.SetLocalizedString(unchecked((int)_borrowA.Hash), _borrowA.Text);
+                    Game.SetLocalizedString(unchecked((int)_borrowS.Hash), _borrowS.Text);
                 }
                 else
                 {
-                    // Вернуть исходный текст трека Pop.
                     Game.SetLocalizedString(unchecked((int)_wheelA), _origA);
                     Game.SetLocalizedString(unchecked((int)_wheelS), _origS);
                 }
@@ -475,50 +508,19 @@ namespace GtaRadio.Mod
             _wheelTrackId = 0;
         }
 
-        /// <summary>Текст под длину исходной метки в байтах UTF-8, по границе символа.</summary>
-        private static string FitLength(string text, string original)
-        {
-            int max = System.Text.Encoding.UTF8.GetByteCount(original ?? "");
-            text ??= "";
-            var enc = System.Text.Encoding.UTF8;
-            while (text.Length > 0 && enc.GetByteCount(text) > max) text = text.Substring(0, text.Length - 1);
-            return text;
-        }
-
         /// <summary>
-        /// Пишет текст в свою метку прямо в загруженной таблице текстов, с нулём на конце.
-        /// Game.SetLocalizedString добивает строку пробелами до исходной длины — в центре колеса
-        /// текст уехал бы вбок. Пишем, только если по указателю наша метка: пробелы-плейсхолдер
-        /// (после загрузки/смены языка) или наш прошлый текст; не больше LabelBytes байт.
+        /// Текст под вместимость метки (байты UTF-8 исходной строки), по границе символа и по центру:
+        /// SetLocalizedString добивает строку пробелами справа, поэтому половину запаса ставим слева,
+        /// иначе текст в центре колеса уедет влево.
         /// </summary>
-        private static bool WriteLabel(string label, string text, string? previous)
+        private static string Centered(string text, string original)
         {
-            IntPtr p = Function.Call<IntPtr>((Hash)GET_FILENAME_FOR_AUDIO_CONVERSATION, label);
-            if (p == IntPtr.Zero) return false;
-            var cur = new byte[LabelBytes + 1];
-            Marshal.Copy(p, cur, 0, cur.Length);
-            int len = Array.IndexOf(cur, (byte)0);
-            if (len < 0) return false;
-            string now = System.Text.Encoding.UTF8.GetString(cur, 0, len);
-            string fitted = FitUtf8(text);
-            if (now == fitted) return true;
-            bool placeholder = len == LabelBytes && now.Trim().Length == 0;
-            if (!placeholder && now != FitUtf8(previous ?? "")) return false;
-
-            var bytes = System.Text.Encoding.UTF8.GetBytes(fitted);
-            var buf = new byte[bytes.Length + 1];
-            Buffer.BlockCopy(bytes, 0, buf, 0, bytes.Length);
-            Marshal.Copy(buf, 0, p, buf.Length);
-            return true;
-        }
-
-        /// <summary>Обрезка по границе символа: SetLocalizedString режет байты и иначе ломает кириллицу.</summary>
-        private static string FitUtf8(string text)
-        {
-            text ??= "";
             var enc = System.Text.Encoding.UTF8;
-            while (enc.GetByteCount(text) > LabelBytes - 1) text = text.Substring(0, text.Length - 1);
-            return text;
+            int max = enc.GetByteCount(original ?? "");
+            text = (text ?? "").Trim();
+            while (text.Length > 0 && enc.GetByteCount(text) > max) text = text.Substring(0, text.Length - 1);
+            int spare = max - enc.GetByteCount(text);
+            return new string(' ', spare / 2) + text;
         }
 
         private static uint Joaat(string s)

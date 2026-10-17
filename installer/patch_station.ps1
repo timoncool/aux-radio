@@ -111,8 +111,8 @@ foreach ($lang in $langs) {
         $value = $Text
     }
 
-    # Две свои метки для текста трека в колесе радио (мод пишет туда артиста и название в эфире).
-    # Плейсхолдер 127 пробелов: SHVDN SetLocalizedString пишет поверх строки той же длины.
+    # Метки GTARADIO_* (версия 2.0.x) больше не нужны: колесо читает таблицу треков trackid.gxt2,
+    # мод берёт метки там (DEEPSEEK-RESULT-5). Здесь их только убираем, если остались.
     $changed = $false
     if ($current -ne $value) {
         Gxt2 @("set", $file, $Label, $value) | Out-Null
@@ -121,8 +121,7 @@ foreach ($lang in $langs) {
     }
     foreach ($wl in $WheelLabels) {
         $has = Has-Label $file $wl
-        if ($Uninstall -and $has) { Gxt2 @("remove", $file, $wl) | Out-Null; $changed = $true }
-        elseif (-not $Uninstall -and -not $has) { Gxt2 @("add", $file, $wl, $Placeholder) | Out-Null; $changed = $true }
+        if ($has) { Gxt2 @("remove", $file, $wl) | Out-Null; $changed = $true }
     }
 
     if (-not $changed) { Log "[OK] $lang already '$value', wheel labels ok"; continue }
@@ -134,9 +133,9 @@ foreach ($lang in $langs) {
     $after = Gxt2 @("get", $verify, $Label)
     if ($after -ne $value) { throw "rpf verify failed for ${lang}: '$after'" }
     foreach ($wl in $WheelLabels) {
-        if ((Has-Label $verify $wl) -eq [bool]$Uninstall) { throw "rpf verify failed for ${lang}: label $wl" }
+        if (Has-Label $verify $wl) { throw "rpf verify failed for ${lang}: label $wl still present" }
     }
-    Log "[OK] $lang '$current' -> '$value', wheel labels $(if ($Uninstall) { 'removed' } else { 'present' })"
+    Log "[OK] $lang '$current' -> '$value'"
 }
 
 Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
