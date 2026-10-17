@@ -349,23 +349,22 @@ namespace GtaRadio.Mod
         /// <summary>
         /// Центр колеса: артист/трек текущего (замороженного) трека Pop -> трек плеера.
         ///
-        /// Колесо читает метки "<id>A"/"<id>S" из таблицы треков (trackid.gxt2), а хук SHVDN Enhanced
-        /// (AddCustomGxtEntry) ищет подменённый хеш в той же таблице (DEEPSEEK-RESULT-5). Поэтому:
-        /// Borrow — один раз находим в этой таблице две самые длинные метки треков, на время эфира
-        ///          перенаправляем на них метки трека Pop и пишем туда трек плеера (вместимость — длина
-        ///          найденных строк), вне эфира возвращаем их исходный текст;
-        /// Direct — пока поиск не закончен или если Borrow не сработал: пишем прямо в метки трека Pop
-        ///          (вместимость — длина его строк).
-        /// После записи — проверка чтением "<id>A" так же, как читает игра.
+        /// Колесо читает метки "<id>A"/"<id>S" из таблицы треков, а подмена хеша (SHVDN Enhanced
+        /// AddCustomGxtEntry) работает только внутри этой таблицы (DEEPSEEK-RESULT-5). Поэтому мод
+        /// один раз (понемногу за кадр) запоминает все метки треков с их длиной и под каждый текст
+        /// берёт метку ровно нужной длины (или чуть длиннее): SetLocalizedString добивает строку
+        /// пробелами до длины метки, и с длинной меткой текст в колесе «разъезжался» (DEEPSEEK-RESULT-6).
+        /// Занятой метке вне эфира и при смене трека возвращается исходный текст.
+        /// Пока метки не собраны — Direct: пишем прямо в метки трека Pop (обрезка по их длине).
         /// </summary>
         private void UpdateWheel()
         {
             if (_link == null || !_link.AgentAlive) return;
-            ScanBorrowLabels();
+            ScanTrackLabels();
 
             int id = Function.Call<int>((Hash)GET_AUDIBLE_MUSIC_TRACK_TEXT_ID);
-            bool wantBorrow = _borrowReady && !_borrowFailed;
-            if (id != 0 && id != -1 && (id != _wheelTrackId || (wantBorrow && _wheelMode == WheelMode.Direct)))
+            bool poolReady = _poolReady && !_borrowFailed;
+            if (id != 0 && id != -1 && (id != _wheelTrackId || (poolReady && _wheelMode == WheelMode.Direct)))
             {
                 ClearWheel();
                 string key = id.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -378,70 +377,93 @@ namespace GtaRadio.Mod
                 _origS = Game.GetLocalizedString(key + "S");
                 _wheelTrackId = id;
                 _wheelArtist = _wheelTitle = "\u0001"; // заставить записать
-                _wheelMode = wantBorrow && _borrowA.Hash != _wheelA && _borrowS.Hash != _wheelS ? WheelMode.Borrow : WheelMode.Direct;
-                if (_wheelMode == WheelMode.Borrow)
-                {
-                    Game.UpdateCustomGxtEntry(_wheelA, _borrowA.Hash);
-                    Game.UpdateCustomGxtEntry(_wheelS, _borrowS.Hash);
-                }
-                _wheelVerifyAt = DateTime.UtcNow.AddMilliseconds(300);
+                _wheelMode = poolReady ? WheelMode.Borrow : WheelMode.Direct;
                 Log("wheel track " + key + " ('" + _origA + " - " + _origS + "') mode=" + _wheelMode);
             }
             if (_wheelTrackId == 0) return;
 
             string artist = _link.Artist, title = _link.Title;
-            if (artist != _wheelArtist)
-            {
-                if (_wheelMode == WheelMode.Borrow) Game.SetLocalizedString(unchecked((int)_borrowA.Hash), Centered(artist, _borrowA.Text));
-                else Game.SetLocalizedString(unchecked((int)_wheelA), Centered(artist, _origA));
-                _wheelArtist = artist;
-            }
-            if (title != _wheelTitle)
-            {
-                if (_wheelMode == WheelMode.Borrow) Game.SetLocalizedString(unchecked((int)_borrowS.Hash), Centered(title, _borrowS.Text));
-                else Game.SetLocalizedString(unchecked((int)_wheelS), Centered(title, _origS));
-                _wheelTitle = title;
-            }
+            if (artist != _wheelArtist) { SetSlot(ref _slotA, _wheelA, artist, _origA); _wheelArtist = artist; _wheelVerifyAt = DateTime.UtcNow.AddMilliseconds(300); }
+            if (title != _wheelTitle) { SetSlot(ref _slotS, _wheelS, title, _origS); _wheelTitle = title; _wheelVerifyAt = DateTime.UtcNow.AddMilliseconds(300); }
 
             if (_wheelVerifyAt != DateTime.MinValue && DateTime.UtcNow >= _wheelVerifyAt)
             {
                 _wheelVerifyAt = DateTime.MinValue;
                 string seenA = Game.GetLocalizedString(_wheelKey + "A").Trim();
                 string seenS = Game.GetLocalizedString(_wheelKey + "S").Trim();
-                bool ok = artist.Length == 0 || artist.StartsWith(seenA, StringComparison.Ordinal) && seenA.Length > 0;
-                Log("wheel verify mode=" + _wheelMode + " seen='" + seenA + " - " + seenS + "' ok=" + ok);
-                if (!ok && _wheelMode == WheelMode.Borrow)
+                bool okA = artist.Trim().Length == 0 || seenA.Length > 0 && artist.Trim().StartsWith(seenA, StringComparison.Ordinal);
+                bool okS = title.Trim().Length == 0 || seenS.Length > 0 && title.Trim().StartsWith(seenS, StringComparison.Ordinal);
+                Log("wheel verify mode=" + _wheelMode + " seen='" + seenA + " - " + seenS + "' ok=" + (okA && okS) +
+                    (_wheelMode == WheelMode.Borrow ? " labels=" + _slotA.Key + "/" + _slotS.Key : ""));
+                if (_wheelMode == WheelMode.Borrow && !(okA && okS))
                 {
-                    // Пара могла оказаться в другой таблице (треки DLC) — пробуем следующую.
-                    ClearWheel();
-                    if (!PickBorrowPair(_borrowPair + 1))
+                    // Метка не дошла до колеса (другая таблица) — пометить и взять другую; после 3 неудач — Direct.
+                    if (!okA && _slotA.Hash != 0) _badLabels.Add(_slotA.Hash);
+                    if (!okS && _slotS.Hash != 0) _badLabels.Add(_slotS.Hash);
+                    if (++_borrowFailures >= 3)
                     {
                         _borrowFailed = true;
-                        Log("wheel: borrow does not reach the wheel, direct mode");
+                        Log("wheel: borrowed labels do not reach the wheel, direct mode");
                     }
+                    ClearWheel();
                 }
             }
         }
 
         private enum WheelMode { Borrow, Direct }
-        private struct Borrowed { public uint Hash; public string Text; public string Key; }
+        private struct Label { public uint Hash; public string Text; public string Key; public int Bytes; }
         private WheelMode _wheelMode;
         private string _wheelKey = "", _origA = "", _origS = "";
         private DateTime _wheelVerifyAt = DateTime.MinValue;
-        private Borrowed _borrowA, _borrowS;
-        private bool _borrowReady, _borrowFailed;
-        private int _borrowPair;
+        private Label _slotA, _slotS;                       // занятые сейчас метки (Hash=0 — нет)
+        private readonly List<Label> _pool = new List<Label>();
+        private readonly HashSet<uint> _badLabels = new HashSet<uint>();
+        private bool _poolReady, _borrowFailed;
+        private int _borrowFailures;
         private int _scanN = 1;
-        private readonly List<Borrowed> _scanTop = new List<Borrowed>();
-        private const int ScanMax = 40000, ScanPerFrame = 300;
+        private const int ScanMax = 40000, ScanPerFrame = 300, MinPool = 8;
+
+        /// <summary>Записать text в слот: Borrow — подобрать метку по длине и перенаправить key на неё; Direct — в саму метку key.</summary>
+        private void SetSlot(ref Label slot, uint key, string text, string original)
+        {
+            text = (text ?? "").Trim();
+            if (_wheelMode == WheelMode.Direct)
+            {
+                Game.SetLocalizedString(unchecked((int)key), Centered(text, original));
+                return;
+            }
+            ReleaseSlot(ref slot);
+            int need = System.Text.Encoding.UTF8.GetByteCount(text);
+            uint other = key == _wheelA ? _slotS.Hash : _slotA.Hash;
+            Label best = default;
+            bool found = false;
+            foreach (var l in _pool)
+            {
+                if (l.Hash == _wheelA || l.Hash == _wheelS || l.Hash == other || _badLabels.Contains(l.Hash)) continue;
+                if (!found) { best = l; found = true; continue; }
+                bool lFits = l.Bytes >= need, bFits = best.Bytes >= need;
+                if (lFits && (!bFits || l.Bytes < best.Bytes)) best = l;          // самая короткая из подходящих
+                else if (!lFits && !bFits && l.Bytes > best.Bytes) best = l;     // ни одна не влезает — самая длинная
+            }
+            if (!found) return;
+            slot = best;
+            Game.UpdateCustomGxtEntry(key, slot.Hash);
+            Game.SetLocalizedString(unchecked((int)slot.Hash), Centered(text, slot.Text));
+        }
+
+        private static void ReleaseSlot(ref Label slot)
+        {
+            if (slot.Hash == 0) return;
+            Game.SetLocalizedString(unchecked((int)slot.Hash), slot.Text); // вернуть исходный текст метки
+            slot = default;
+        }
 
         /// <summary>
-        /// Поиск двух самых длинных меток треков ("<n>A"/"<n>S") в таблице треков — понемногу за кадр,
-        /// чтобы не было подвисания. Метки текущего трека Pop не берём.
+        /// Сбор меток треков ("<n>A"/"<n>S") с длиной — понемногу за кадр, чтобы не было подвисания.
         /// </summary>
-        private void ScanBorrowLabels()
+        private void ScanTrackLabels()
         {
-            if (_borrowReady || _borrowFailed) return;
+            if (_poolReady || _borrowFailed) return;
             var enc = System.Text.Encoding.UTF8;
             int end = Math.Min(ScanMax, _scanN + ScanPerFrame);
             for (; _scanN < end; _scanN++)
@@ -450,39 +472,24 @@ namespace GtaRadio.Mod
                 foreach (var suffix in new[] { "A", "S" })
                 {
                     string key = n + suffix;
+                    uint h = Joaat(key);
+                    if (h == _wheelA || h == _wheelS) continue; // текущий трек Pop может быть уже перенаправлен
                     string text = Game.GetLocalizedString(key);
                     if (text.Length == 0) continue;
-                    int bytes = enc.GetByteCount(text);
-                    if (_scanTop.Count < 8 || bytes > enc.GetByteCount(_scanTop[_scanTop.Count - 1].Text))
-                    {
-                        _scanTop.Add(new Borrowed { Hash = Joaat(key), Text = text, Key = key });
-                        _scanTop.Sort((x, y) => enc.GetByteCount(y.Text).CompareTo(enc.GetByteCount(x.Text)));
-                        if (_scanTop.Count > 8) _scanTop.RemoveAt(_scanTop.Count - 1);
-                    }
+                    _pool.Add(new Label { Hash = h, Text = text, Key = key, Bytes = enc.GetByteCount(text) });
                 }
             }
             if (_scanN < ScanMax) return;
-
-            _borrowReady = true;
-            if (!PickBorrowPair(0))
+            _poolReady = true;
+            if (_pool.Count < MinPool)
             {
                 _borrowFailed = true;
-                Log("wheel borrow: not enough track labels found, direct mode");
+                Log("wheel: only " + _pool.Count + " track labels found, direct mode");
+                return;
             }
-        }
-
-        /// <summary>Пара самых длинных меток (не из текущего трека): 0 — первая и вторая, 1 — третья и четвёртая...</summary>
-        private bool PickBorrowPair(int pair)
-        {
-            var enc = System.Text.Encoding.UTF8;
-            var pick = _scanTop.FindAll(b => b.Hash != _wheelA && b.Hash != _wheelS);
-            if (pair > 2 || pick.Count < pair * 2 + 2) return false;
-            _borrowPair = pair;
-            _borrowA = pick[pair * 2];
-            _borrowS = pick[pair * 2 + 1];
-            Log("wheel borrow pair " + pair + ": " + _borrowA.Key + " (" + enc.GetByteCount(_borrowA.Text) + " b), " +
-                _borrowS.Key + " (" + enc.GetByteCount(_borrowS.Text) + " b)");
-            return true;
+            int max = 0;
+            foreach (var l in _pool) max = Math.Max(max, l.Bytes);
+            Log("wheel: " + _pool.Count + " track labels collected, longest " + max + " b");
         }
 
         private void ClearWheel()
@@ -494,9 +501,8 @@ namespace GtaRadio.Mod
                 {
                     Game.RemoveCustomGxtEntry(_wheelA, out _);
                     Game.RemoveCustomGxtEntry(_wheelS, out _);
-                    // Вернуть исходный текст одолженных меток.
-                    Game.SetLocalizedString(unchecked((int)_borrowA.Hash), _borrowA.Text);
-                    Game.SetLocalizedString(unchecked((int)_borrowS.Hash), _borrowS.Text);
+                    ReleaseSlot(ref _slotA);
+                    ReleaseSlot(ref _slotS);
                 }
                 else
                 {

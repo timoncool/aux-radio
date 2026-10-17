@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyName>GtaRadio.Logo</AssemblyName>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <!-- CodeWalker.Core с поддержкой Gen9 (RpfManager.IsGen9). Переопределить: -p:CodeWalkerCore=... -->
+    <CodeWalkerCore Condition="'$(CodeWalkerCore)' == ''">D:\Projects\_tools\CodeWalker\CodeWalker.Core\CodeWalker.Core.csproj</CodeWalkerCore>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Drawing.Common" Version="8.0.10" />
+    <ProjectReference Include="$(CodeWalkerCore)" />
+  </ItemGroup>
+</Project>
