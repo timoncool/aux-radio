@@ -1,0 +1,62 @@
+using CodeWalker.GameFiles;
+
+if (args.Length < 1)
+{
+    Console.WriteLine("usage: RpfProbe <rpf> [grep] [exe]");
+    return;
+}
+
+var path = args[0];
+var grep = args.Length > 1 ? args[1].ToLowerInvariant() : null;
+var exe = args.Length > 2 ? args[2] : @"G:\GTA5\Grand.Theft.Auto.V.Enhanced-InsaneRamZes\GTA5_Enhanced.exe";
+
+if (File.Exists(exe))
+{
+    var data = File.ReadAllBytes(exe);
+    try
+    {
+        GTA5Keys.Generate(data, s => { });
+        Console.WriteLine("keys: generated from exe");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("keys generate failed: " + ex.Message);
+        try
+        {
+            GTA5Keys.GenerateV2(data, s => { });
+            Console.WriteLine("keys: generated V2 from exe");
+        }
+        catch (Exception ex2)
+        {
+            Console.WriteLine("keys V2 failed: " + ex2.Message);
+        }
+    }
+}
+
+var rpf = new RpfFile(path, "");
+rpf.ScanStructure(s => { }, e => Console.WriteLine("ERR: " + e));
+
+Console.WriteLine($"root entries: {rpf.AllEntries?.Count ?? 0}, children: {rpf.Children?.Count ?? 0}");
+
+void Dump(RpfFile f, int depth)
+{
+    if (f.AllEntries != null)
+    {
+        foreach (var e in f.AllEntries)
+        {
+            var p = e.Path ?? e.Name;
+            if (grep == null || (p != null && p.ToLowerInvariant().Contains(grep)))
+                Console.WriteLine(new string(' ', depth * 2) + p);
+        }
+    }
+    if (f.Children != null)
+    {
+        foreach (var c in f.Children)
+        {
+            Console.WriteLine(new string(' ', depth * 2) + "[rpf] " + c.Name + $" ({c.AllEntries?.Count ?? 0})");
+            Dump(c, depth + 1);
+        }
+    }
+}
+
+Dump(rpf, 0);
