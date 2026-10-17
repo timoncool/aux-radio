@@ -57,8 +57,12 @@ $WheelLabels = @("GTARADIO_ARTIST", "GTARADIO_TITLE")
 $Placeholder = " " * 127
 
 function Has-Label($file, $label) {
+    $old = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     & $gxt2 get $file $label *> $null
-    return ($LASTEXITCODE -eq 0)
+    $code = $LASTEXITCODE
+    $ErrorActionPreference = $old
+    return ($code -eq 0)
 }
 
 function Gxt2($argsList) {
