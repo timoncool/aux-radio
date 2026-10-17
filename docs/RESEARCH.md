@@ -97,7 +97,7 @@ gta-patch.exe relxml  <game> <rpf> <entry>
 3. Формат устройства: `mix sr=48000 bits=32 ch=2 enc=Extensible`,
    `SubFormat=00000003-0000-0010-8000-00aa00389b71` (IEEE float).
    Если считать его 16-битным — получается гул. Нужно проверять `SubFormat`.
-4. Захват **не режется** мьютом сессии: `RMS до 794` -> `muted: 1` -> `RMS 1028`,
+4. [НЕДЕЙСТВИТЕЛЬНО, см. FACTCHECK.md: замер в режиме EXCLUDE] Захват **не режется** мьютом сессии: `RMS до 794` -> `muted: 1` -> `RMS 1028`,
    полный тракт `samples=766080 RMS=10211.3 peak=32344 -> SIGNAL`.
 5. Запись захвата (5 с, Яндекс) дала `RMS 0.00514`, `peak 0.0261`,
    спектральная плоскостность 0.17–0.25 — это музыка, не шум.
@@ -114,13 +114,13 @@ gta-patch.exe relxml  <game> <rpf> <entry>
 - `sahailee/GTA-Spotify-Radio`: C# SHVDN, Spotify Web API, add-on станция
   `RADIO_47_SPOTIFY_RADIO` (Community HUD.gfx), Scaleform `dashboard` `SET_RADIO`,
   громкость Spotify через API (0 = mute). Звук не захватывается.
-- `Amaru8/CiderGTA`: форк той же схемы для Apple Music (Cider).
+- `Amaru8/CiderGTA`: та же схема для Apple Music (Cider), самостоятельный код, AGPL-3.0.
 - `MichonGoddijn231849/gta-spotify-radio`: C++ ASI, librespot, XAudio2,
   занимает `RADIO_02_POP`, штатное радио OFF.
 - `op30mmd/MusicPlayerV`: C++ ASI, FFmpeg/Media Foundation, XAudio2, локальные файлы.
 - `LfxB/CustomRadioStations-GTAV`: C# SHVDN, irrKlang, добавление станций.
 - `SiverKing/GTA5_CarRadioMusicMod`: Python, системные медиа-клавиши, станцию не занимает.
-- Internet Radio LS (Nexus, Enhanced): закрытый, интернет-радио + пульт Spotify/YouTube Music.
+- Internet Radio LS (Nexus, Enhanced): C# SHVDN, исходник открыт для чтения (github.com/trenkmannsteven-del/-Internet-Radio-LS); Spotify/YouTube Music — громкостью сессии в микшере.
 
 ## 8. Нативы
 

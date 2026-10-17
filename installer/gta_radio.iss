@@ -1,21 +1,26 @@
-; Установщик GTA Radio для GTA V Enhanced (Inno Setup 7).
-; Шаблон — установщик нейроозвучки (music-studios/game-dub/games/gta5/installer/neurodub.iss):
-; тёмный мастер, back/wizard/small картинки, компоненты, проверка папки игры, запуск после установки.
-; Сборка: "F:\AI\InnoSetup\ISCC.exe" gta_radio.iss
+; Установщик GTA Radio для GTA V Enhanced.
+; Стиль — как у установщика нейроозвучки (тёмный мастер, арт, проверка папки игры).
+; Сборка: build.ps1 собирает payload\ и вызывает ISCC.exe (см. docs\DEEPSEEK.md).
+;
+; Что ставится:
+;   scripts\GtaRadio.Mod.dll + NAudio.Core.dll + NAudio.Wasapi.dll + GtaRadio.Mod.ini  (мод)
+;   GtaRadio\GtaRadio.Agent.exe                                                      (агент в трее)
+;   GtaRadio\tools\gta-patch\*, GtaRadio\tools\GtaRadio.Gxt2.exe, patch_station.ps1     (имя станции)
+;   ScriptHookV / SHVDN Enhanced — только если их ещё нет в папке игры.
+; Совместимость с переводом и радио-озвучкой: в mods\update\update.rpf меняется одна строка
+; RADIO_02_POP; при удалении в текущий файл возвращается только она. Оригинальные RPF не трогаются.
 
-#define AppVer "1.0"
+#define AppVer "2.0"
 #define AppGuid "{A7F3D2C1-6B84-4E21-9C55-2F8D1A7B3C90}"
-#define OutBase "GtaRadio_Setup_" + AppVer
 
 [Setup]
 AppId={{#AppGuid}
 AppName=GTA Radio
 AppVersion={#AppVer}
-AppVerName=GTA Radio {#AppVer} — Spotify и Яндекс Музыка в GTA V
+AppVerName=GTA Radio {#AppVer} — Яндекс Музыка, Spotify и любой плеер вместо Non-Stop-Pop
 AppPublisher=GTA Radio
 DefaultDirName={code:DefaultGameDir}
 DirExistsWarning=no
-DisableWelcomePage=no
 AppendDefaultDirName=no
 DisableProgramGroupPage=yes
 UsePreviousAppDir=yes
@@ -24,17 +29,15 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 Compression=lzma2/ultra64
 SolidCompression=yes
-LZMANumBlockThreads=8
 OutputDir=output
-OutputBaseFilename={#OutBase}
-WizardStyle=modern dark includetitlebar hidebevels
-WizardBackImageFile=art\back_radio.png
+OutputBaseFilename=GtaRadio_Setup_{#AppVer}
+WizardStyle=modern
 WizardImageFile=art\wizard_radio.png
 WizardSmallImageFile=art\small_radio.png
 UninstallFilesDir={app}\GtaRadio\uninstall
 UninstallDisplayName=GTA Radio
-UninstallDisplayIcon={app}\GtaRadio\GtaRadio.exe
-SetupIconFile=..\app\GtaRadio\app.ico
+UninstallDisplayIcon={app}\GtaRadio\GtaRadio.Agent.exe
+SetupIconFile=..\src\GtaRadio.Agent\app.ico
 SetupLogging=yes
 
 [Languages]
@@ -43,52 +46,44 @@ Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
 [Messages]
 ru.SetupWindowTitle=Установка — GTA Radio
 ru.WelcomeLabel1=GTA Radio
-ru.WelcomeLabel2=Музыка из Spotify и Яндекс Музыки — как радиостанция в GTA V Enhanced.%n%nМод сам находит играющий плеер на компьютере (Spotify, Яндекс Музыка, AIMP, VLC, foobar2000 и другие), забирает звук, глушит оригинал и играет его в игре. В HUD видно источник, трек и исполнителя.%n%nФайлы игры и твоя озвучка не изменяются: мод ставится рядом и удаляется одной кнопкой. Перед заменой существующих файлов создаётся резервная копия.
-ru.WizardSelectDir=Папка игры
-ru.SelectDirDesc=Где установлена GTA V Enhanced?
-ru.SelectDirLabel3=Укажите папку, где установлена GTA V Enhanced (в ней лежит GTA5_Enhanced.exe).
-ru.SelectDirBrowseLabel=Нажмите «Далее», если папка верная, или «Обзор», чтобы выбрать другую.
-ru.SelectComponentsDesc=Компоненты установки
-ru.ReadyLabel1=Всё готово: мод, загрузчики и приложение будут установлены в папку игры.
-ru.FinishedHeadingLabel=Готово!
-ru.FinishedLabel=GTA Radio установлен.%n%nЗапусти игру, включи музыку в Spotify или Яндекс Музыке — агент сам подхватит её. Хоткеи в игре: F7 — вкл/выкл, F8 — предыдущий трек, F9 — пауза, F10 — следующий.%n%nЗначок GTA Radio живёт в трее и закрывается вместе с игрой.
+ru.WelcomeLabel2=Радиостанция Non-Stop-Pop превращается в GTA Radio: в машине играет то, что звучит у тебя в Яндекс Музыке, Spotify или любом другом плеере.%n%nГромкость следует игре: ползунок музыки, пауза, катсцены, разговоры. Вышел из машины или переключил станцию — плеер на паузе.%n%nПеревод и радио-озвучка не затрагиваются: меняется только название одной станции, с резервной копией и откатом при удалении.
+ru.SelectDirLabel3=Укажите папку GTA V Enhanced (в ней лежит GTA5_Enhanced.exe).
+ru.ReadyLabel1=Будут установлены мод, агент и название станции. Перед изменениями создаются резервные копии.
+ru.FinishedHeadingLabel=Готово
+ru.FinishedLabel=GTA Radio установлен.%n%nВключи музыку в плеере, запусти игру, сядь в машину и выбери GTA Radio. Агент запускается вместе с игрой и закрывается после неё.%n%nВ эфире: F7 — пауза, F8 — следующий трек, F6 — предыдущий.
 
 [Types]
 Name: "full"; Description: "Полная установка"
-Name: "custom"; Description: "Выборочная установка"; Flags: iscustom
+Name: "custom"; Description: "Выборочная"; Flags: iscustom
 
 [Components]
-Name: "mod"; Description: "Игровой мод GTA Radio (обязательно)"; Types: full custom; Flags: fixed
-Name: "shv"; Description: "Script Hook V + ScriptHookVDotNet — нужны моду для работы в игре"; Types: full custom
-
-[Tasks]
-Name: "desktopicon"; Description: "Ярлык «GTA Radio» на рабочем столе"; GroupDescription: "Дополнительно:"
+Name: "mod"; Description: "GTA Radio (мод и агент)"; Types: full custom; Flags: fixed
+Name: "rename"; Description: "Название станции «GTA Radio» в колесе радио"; Types: full custom
+Name: "shv"; Description: "Script Hook V + ScriptHookVDotNet Enhanced (только если их ещё нет)"; Types: full custom
 
 [Files]
-; Приложение-агент (трей, автопоиск плеера, захват звука)
-Source: "payload\GtaRadio\*"; DestDir: "{app}\GtaRadio"; Flags: ignoreversion recursesubdirs createallsubdirs
-; Игровой мод
-Source: "payload\GtaRadioMod.dll"; DestDir: "{app}\scripts"; Components: mod; Flags: ignoreversion
-; Script Hook V + SHVDN (ставим, если ещё нет или если выбрано обновление)
-Source: "payload\ScriptHookV.dll"; DestDir: "{app}"; Components: shv; Flags: ignoreversion
-Source: "payload\ScriptHookVDotNet.asi"; DestDir: "{app}"; Components: shv; Flags: ignoreversion
-Source: "payload\ScriptHookVDotNet3.dll"; DestDir: "{app}"; Components: shv; Flags: ignoreversion
-Source: "payload\ScriptHookVDotNet.ini"; DestDir: "{app}"; Components: shv; Flags: ignoreversion
-Source: "payload\MinHook.x64.dll"; DestDir: "{app}"; Components: shv; Flags: ignoreversion
-; Загрузчик ASI — только если его ещё нет (у игрока может быть свой, более новый)
-Source: "payload\xinput1_4.dll"; DestDir: "{app}"; Components: shv; Flags: ignoreversion; Check: NeedFile('xinput1_4.dll')
-Source: "payload\dinput8.dll"; DestDir: "{app}"; Components: shv; Flags: ignoreversion; Check: NeedFile('dinput8.dll')
-Source: "payload\args.txt"; DestDir: "{app}"; Components: shv; Flags: ignoreversion; Check: NeedFile('args.txt')
-
-[Icons]
-Name: "{commondesktop}\GTA Radio"; Filename: "{app}\GtaRadio\GtaRadio.exe"; Tasks: desktopicon
+Source: "payload\scripts\GtaRadio.Mod.dll"; DestDir: "{app}\scripts"; Components: mod; Flags: ignoreversion
+Source: "payload\scripts\NAudio.Core.dll"; DestDir: "{app}\scripts"; Components: mod; Flags: ignoreversion
+Source: "payload\scripts\NAudio.Wasapi.dll"; DestDir: "{app}\scripts"; Components: mod; Flags: ignoreversion
+Source: "payload\scripts\GtaRadio.Mod.ini"; DestDir: "{app}\scripts"; Components: mod; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "payload\GtaRadio\*"; DestDir: "{app}\GtaRadio"; Components: mod; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "patch_station.ps1"; DestDir: "{app}\GtaRadio\tools"; Components: mod; Flags: ignoreversion
+; Загрузчики: только если их нет — у игрока может быть своя (в т.ч. более новая) версия.
+Source: "payload\shv\ScriptHookV.dll"; DestDir: "{app}"; Components: shv; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "payload\shv\dinput8.dll"; DestDir: "{app}"; Components: shv; Flags: onlyifdoesntexist uninsneveruninstall; Check: NeedFile('dinput8.dll')
+Source: "payload\shv\ScriptHookVDotNet.asi"; DestDir: "{app}"; Components: shv; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "payload\shv\ScriptHookVDotNet3.dll"; DestDir: "{app}"; Components: shv; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "payload\shv\ScriptHookVDotNet.ini"; DestDir: "{app}"; Components: shv; Flags: onlyifdoesntexist uninsneveruninstall
 
 [UninstallDelete]
-Type: filesandordirs; Name: "{app}\GtaRadio"
+Type: filesandordirs; Name: "{app}\GtaRadio\tools"
+Type: files; Name: "{app}\GtaRadio\GtaRadio.Agent.exe"
 
-[Run]
-Filename: "{app}\GtaRadio\GtaRadio.exe"; Description: "Запустить GTA Radio"; Flags: postinstall nowait skipifsilent runasoriginaluser
-Filename: "{app}\PlayGTAV.exe"; WorkingDir: "{app}"; Description: "Запустить GTA V"; Flags: postinstall nowait skipifsilent runasoriginaluser; Check: HasLauncher
+[UninstallRun]
+; Агент без игры уже вернул громкость плеера; останавливаем, чтобы освободить exe.
+Filename: "taskkill.exe"; Parameters: "/F /IM GtaRadio.Agent.exe"; Flags: runhidden waituntilterminated; RunOnceId: "StopAgent"
+; Вернуть исходное название станции (только эту строку) до удаления файлов.
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\GtaRadio\tools\patch_station.ps1"" -GameDir ""{app}"" -Uninstall"; Flags: runhidden waituntilterminated; RunOnceId: "RestoreStationName"
 
 [Code]
 function DefaultGameDir(Param: String): String;
@@ -105,11 +100,6 @@ end;
 function NeedFile(const Name: String): Boolean;
 begin
   Result := not FileExists(AddBackslash(WizardDirValue) + Name);
-end;
-
-function HasLauncher: Boolean;
-begin
-  Result := FileExists(ExpandConstant('{app}\PlayGTAV.exe'));
 end;
 
 function IsProcessRunning(const Name: String): Boolean;
@@ -132,14 +122,58 @@ begin
   Result := True;
   if (CurPageID = wpSelectDir) and not FileExists(AddBackslash(WizardDirValue) + 'GTA5_Enhanced.exe') then
   begin
-    SuppressibleMsgBox('В этой папке нет GTA5_Enhanced.exe. Укажите папку, где установлена GTA V Enhanced.', mbError, MB_OK, IDOK);
+    SuppressibleMsgBox('В этой папке нет GTA5_Enhanced.exe. Укажите папку GTA V Enhanced.', mbError, MB_OK, IDOK);
     Result := False;
   end;
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Code: Integer;
 begin
   Result := '';
   if IsProcessRunning('GTA5_Enhanced.exe') or IsProcessRunning('PlayGTAV.exe') then
-    Result := 'Игра запущена. Закройте GTA V, затем нажмите «Назад» и снова «Установить».';
+    Result := 'Игра запущена. Закройте GTA V и нажмите «Назад», затем снова «Установить».'
+  else if IsProcessRunning('GtaRadio.Agent.exe') then
+    Exec('taskkill.exe', '/F /IM GtaRadio.Agent.exe', '', SW_HIDE, ewWaitUntilTerminated, Code);
+end;
+
+function InitializeUninstall: Boolean;
+begin
+  Result := True;
+  if IsProcessRunning('GTA5_Enhanced.exe') then
+  begin
+    SuppressibleMsgBox('Игра запущена. Закройте GTA V перед удалением GTA Radio.', mbError, MB_OK, IDOK);
+    Result := False;
+  end;
+end;
+
+// Старый мод (GtaRadioMod.dll из версии 1.x) конфликтует с новым — убираем его с бэкапом.
+procedure RemoveLegacy;
+var
+  Old, Bak: String;
+begin
+  Old := ExpandConstant('{app}\scripts\GtaRadioMod.dll');
+  if FileExists(Old) then
+  begin
+    Bak := ExpandConstant('{app}\GtaRadio\backup\legacy');
+    ForceDirectories(Bak);
+    if RenameFile(Old, Bak + '\GtaRadioMod.dll') then Log('legacy mod moved to backup');
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  Code: Integer;
+begin
+  if CurStep = ssInstall then RemoveLegacy;
+  if (CurStep = ssPostInstall) and WizardIsComponentSelected('rename') then
+  begin
+    WizardForm.StatusLabel.Caption := 'Название станции: GTA Radio (с резервной копией)...';
+    if not Exec('powershell.exe', '-NoProfile -ExecutionPolicy Bypass -File "' +
+        ExpandConstant('{app}\GtaRadio\tools\patch_station.ps1') + '" -GameDir "' + ExpandConstant('{app}') + '"',
+        '', SW_HIDE, ewWaitUntilTerminated, Code) or (Code <> 0) then
+      SuppressibleMsgBox('Не удалось переименовать станцию (код ' + IntToStr(Code) + '). Мод работает, но в колесе останется Non-Stop-Pop.' + #13#10 +
+        'Подробности: ' + ExpandConstant('{app}\GtaRadio\patch_station.log'), mbError, MB_OK, IDOK);
+  end;
 end;

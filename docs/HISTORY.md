@@ -1,3 +1,5 @@
+> **Устарело (версия 1.x, код в `legacy/`).** Актуально: [ARCHITECTURE.md](ARCHITECTURE.md), [DEEPSEEK.md](DEEPSEEK.md), [FACTCHECK.md](FACTCHECK.md).
+
 # История разработки и ошибки
 
 ## Этап 1. SHVDN-мод и клиент с захватом

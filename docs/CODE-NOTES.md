@@ -1,3 +1,5 @@
+> **Устарело (версия 1.x, код в `legacy/`).** Актуально: [ARCHITECTURE.md](ARCHITECTURE.md), [DEEPSEEK.md](DEEPSEEK.md), [FACTCHECK.md](FACTCHECK.md).
+
 # Что было сделано: заметки по коду
 
 Ниже — карта моего кода и ключевые решения, чтобы следующий агент понимал,

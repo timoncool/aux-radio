@@ -1,0 +1,336 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Windows.Forms;
+using GTA;
+using GTA.Native;
+using GtaRadio.Shared;
+
+namespace GtaRadio.Mod
+{
+    /// <summary>
+    /// GTA Radio: станция RADIO_02_POP (в колесе — «GTA Radio», имя из GXT2) играет поток агента:
+    /// звук Яндекс Музыки, Spotify или любого другого плеера.
+    ///
+    /// Схема — как у рабочего Enhanced-мода MichonGoddijn231849/gta-spotify-radio:
+    /// - станция наша, если выбрана RADIO_02_POP, или мы сами держим радио в OFF (station_ownership.cpp);
+    /// - во время перестройки (IS_RADIO_RETUNING) решение не меняется и глушение не применяется;
+    /// - штатная музыка глушится аудио-сценой + заморозкой станции + радио машины в OFF,
+    ///   OFF переутверждается каждый кадр (игра сама включает радио при смене машины);
+    /// - громкость следует игре: ползунок музыки, пауза, катсцены, разговоры, салон, вода.
+    /// Трек — в штатных местах игры: лента уведомлений и дисплей радио в машине (как у sahailee).
+    /// </summary>
+    public class StationMod : Script
+    {
+        private const string Off = "OFF";
+
+        // Хеши — alloc8or/gta5-nativedb-data.
+        private const ulong GET_PLAYER_RADIO_STATION_NAME = 0xF6D733C32076AD03;
+        private const ulong IS_RADIO_RETUNING = 0xA151A7394A214E65;
+        private const ulong IS_RADIO_FADED_OUT = 0x0626A247D2405330;
+        private const ulong SET_VEH_RADIO_STATION = 0x1B9C0099CB942AC6;
+        private const ulong SET_VEHICLE_RADIO_ENABLED = 0x3B988190C0AA6C0B;
+        private const ulong FREEZE_RADIO_STATION = 0x344F393B027E38C3;
+        private const ulong UNFREEZE_RADIO_STATION = 0xFC00454CF60B91DD;
+        private const ulong SET_RADIO_AUTO_UNFREEZE = 0xC1AA9F53CE982990;
+        private const ulong LOCK_RADIO_STATION = 0x477D9DB48F889591;
+        private const ulong SET_USER_RADIO_CONTROL_ENABLED = 0x19F21E63AE6EAE4E;
+        private const ulong START_AUDIO_SCENE = 0x013A80FC08F6E4F2;
+        private const ulong STOP_AUDIO_SCENE = 0xDFE8422B3B94E688;
+        private const ulong IS_AUDIO_SCENE_ACTIVE = 0xB65B60556E2A9225;
+        private const ulong GET_MUSIC_VOL_SLIDER = 0x3A48AB4445D499BE;
+        private const ulong IS_PAUSE_MENU_ACTIVE = 0xB0034A223497FFCB;
+        private const ulong IS_CUTSCENE_PLAYING = 0xD3C2E180A40F031E;
+        private const ulong IS_PLAYER_SWITCH_IN_PROGRESS = 0xD9D2CFFF49FAB35F;
+        private const ulong IS_SCREEN_FADED_OUT = 0xB16FCE9DDC7BA182;
+        private const ulong IS_SCRIPTED_CONVERSATION_ONGOING = 0x16754C556D2EDE3D;
+        private const ulong IS_MOBILE_PHONE_CALL_ONGOING = 0x7497D2CE2C30D24C;
+        private const ulong IS_ANY_SPEECH_PLAYING = 0x729072355FA39EC9;
+        private const ulong IS_AMBIENT_SPEECH_PLAYING = 0x9072C8B49907BFAD;
+        private const ulong GET_IS_VEHICLE_ENGINE_RUNNING = 0xAE31E7DF9B5B132E;
+        private const ulong GET_CONVERTIBLE_ROOF_STATE = 0xF8C397922FC03F41;
+        private const ulong GET_VEHICLE_CLASS = 0x29439776AAA00A62;
+        private const ulong GET_ENTITY_SUBMERGED_LEVEL = 0xE81AFC1BC4CC41CE;
+        private const ulong BEGIN_TEXT_COMMAND_THEFEED_POST = 0x202709F4C58A0424;
+        private const ulong ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME = 0x6C188BE134E074AA;
+        private const ulong END_TEXT_COMMAND_THEFEED_POST_TICKER = 0x2ED7843F8F801023;
+        private const ulong REQUEST_SCALEFORM_MOVIE = 0x11FE353CF9733E6F;
+        private const ulong HAS_SCALEFORM_MOVIE_LOADED = 0x85F01B8D5B90570E;
+        private const ulong BEGIN_SCALEFORM_MOVIE_METHOD = 0xF6E48914C7A8694E;
+        private const ulong SCALEFORM_MOVIE_METHOD_ADD_PARAM_PLAYER_NAME_STRING = 0xE83A3E3557A56640;
+        private const ulong END_SCALEFORM_MOVIE_METHOD = 0xC6796A8FFA375E53;
+
+        // Настройки: scripts\GtaRadio.Mod.ini
+        private readonly string _station;
+        private readonly string _stationLabel;
+        private readonly bool _useScene, _useFreeze, _useVehicleOff, _useDisableRadio;
+        private readonly string[] _scenes;
+        private readonly float _volumeDb, _sliderCurve, _duckDb, _interiorCutoff;
+        private readonly bool _notify, _dashboard;
+        private readonly Keys _keyPlayPause, _keyNext, _keyPrev;
+        private readonly string _agentPath;
+
+        private GamePlayer? _player;
+        private RadioLink? _link;
+        private bool _owned, _holdingOff, _wasRetuning, _frozen;
+        private string? _activeScene;
+        private int _metaSeq = -1;
+        private int _dashHandle;
+        private DateTime _lastDash = DateTime.MinValue;
+        private DateTime _lastAgentLaunch = DateTime.MinValue;
+        private DateTime _agentMissingSince = DateTime.MinValue;
+        private bool _toldNoAgent;
+
+        public StationMod()
+        {
+            _station = Settings.GetValue("Radio", "Station", "RADIO_02_POP");
+            _stationLabel = Settings.GetValue("Radio", "StationLabel", "GTA Radio");
+            var strategies = Settings.GetValue("Radio", "MuteStrategies", "Scene,Freeze,VehicleOff").ToLowerInvariant();
+            _useScene = strategies.Contains("scene");
+            _useFreeze = strategies.Contains("freeze");
+            _useVehicleOff = strategies.Contains("vehicleoff");
+            _useDisableRadio = strategies.Contains("disableradio");
+            _scenes = Settings.GetValue("Radio", "MuteScenes", "CAR_MOD_RADIO_MUTE_SCENE,MP_JOB_CHANGE_RADIO_MUTE,MUTES_RADIO_SCENE")
+                .Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            _volumeDb = Settings.GetValue("Audio", "VolumeDb", -6.0f);
+            _sliderCurve = Settings.GetValue("Audio", "SliderCurve", 2.0f);
+            _duckDb = Settings.GetValue("Audio", "DialogueDuckDb", -11.0f);
+            _interiorCutoff = Settings.GetValue("Audio", "InteriorCutoffHz", 15000f);
+            int fadeMs = Settings.GetValue("Audio", "FadeMs", 90);
+            _notify = Settings.GetValue("Display", "TrackNotifications", true);
+            _dashboard = Settings.GetValue("Display", "Dashboard", true);
+            _keyPlayPause = Settings.GetValue("Controls", "PlayPause", Keys.F7);
+            _keyNext = Settings.GetValue("Controls", "Next", Keys.F8);
+            _keyPrev = Settings.GetValue("Controls", "Previous", Keys.F6);
+            _agentPath = Path.Combine(BaseDirectory, "..", "GtaRadio", "GtaRadio.Agent.exe");
+
+            try { _player = GamePlayer.Create(fadeMs, out var link); _link = link; }
+            catch (Exception ex) { Log("[ERROR] audio init: " + ex.Message); }
+
+            Function.Call((Hash)LOCK_RADIO_STATION, _station, false);
+            Function.Call((Hash)SET_USER_RADIO_CONTROL_ENABLED, true);
+
+            Tick += OnTick;
+            KeyDown += OnKeyDown;
+            Aborted += (_, __) =>
+            {
+                try { Release(CurrentVehicle()); } catch { }
+                try { _link?.GameBeat(false); } catch { }
+                try { _player?.Dispose(); } catch { }
+            };
+            Interval = 0;
+            Log("[OK] loaded, station=" + _station + " audio=" + (_player != null));
+        }
+
+        private static Vehicle? CurrentVehicle()
+        {
+            var ped = Game.Player.Character;
+            if (ped == null || !ped.Exists()) return null;
+            var v = ped.CurrentVehicle;
+            return v != null && v.Exists() ? v : null;
+        }
+
+        private static string StationName()
+        {
+            string? name = Function.Call<string>((Hash)GET_PLAYER_RADIO_STATION_NAME);
+            return string.IsNullOrEmpty(name) ? Off : name!;
+        }
+
+        private void OnTick(object sender, EventArgs e)
+        {
+            var veh = CurrentVehicle();
+            bool retuning = Function.Call<bool>((Hash)IS_RADIO_RETUNING);
+            string station = StationName();
+
+            // Ownership — station_ownership.cpp образца; плюс: после перестройки OFF больше не наш,
+            // чтобы выбранный игроком OFF не считался нашей станцией.
+            if (_wasRetuning && !retuning && station != _station) _holdingOff = false;
+            _wasRetuning = retuning;
+            // Пешком станция остаётся за нами (как у образца): вернулся в машину с OFF — снова GTA Radio.
+            bool owned;
+            if (veh == null || retuning) owned = _owned;
+            else owned = station == _station || (_holdingOff && station == Off);
+
+            if (owned && !_owned) Acquire();
+            else if (!owned && _owned) Release(veh);
+            _owned = owned;
+
+            if (_owned && !retuning && veh != null) ApplyFrameMutes(veh);
+
+            float gain = 0f, cutoff = 22050f;
+            bool audible = false;
+            if (_owned && veh != null) audible = Mix(veh, retuning, out gain, out cutoff);
+            _player?.SetTarget(gain * (float)Math.Pow(10, _volumeDb / 20.0), cutoff);
+            // Агенту — «эфир нужен»: вне машины, в паузе, на катсцене, без двигателя плеер через 1.2 с на паузе.
+            _link?.GameBeat(audible || _owned && veh != null && retuning);
+
+            if (_owned && veh != null) ShowTrack();
+            EnsureAgent();
+        }
+
+        private void Acquire()
+        {
+            if (_useFreeze && !_frozen)
+            {
+                Function.Call((Hash)SET_RADIO_AUTO_UNFREEZE, false);
+                Function.Call((Hash)FREEZE_RADIO_STATION, _station);
+                _frozen = true;
+            }
+            if (_useScene && _activeScene == null)
+            {
+                foreach (var s in _scenes)
+                {
+                    Function.Call<bool>((Hash)START_AUDIO_SCENE, s);
+                    if (Function.Call<bool>((Hash)IS_AUDIO_SCENE_ACTIVE, s)) { _activeScene = s; break; }
+                    Function.Call((Hash)STOP_AUDIO_SCENE, s);
+                }
+                Log(_activeScene != null ? "mute scene: " + _activeScene : "[ERROR] no mute scene started");
+            }
+            _holdingOff = _useVehicleOff || _useDisableRadio;
+            _metaSeq = -1;
+            _lastDash = DateTime.MinValue;
+        }
+
+        private void ApplyFrameMutes(Vehicle veh)
+        {
+            if (_useDisableRadio) Function.Call((Hash)SET_VEHICLE_RADIO_ENABLED, veh, false);
+            if (_useVehicleOff) Function.Call((Hash)SET_VEH_RADIO_STATION, veh, Off);
+        }
+
+        private void Release(Vehicle? veh)
+        {
+            _holdingOff = false;
+            if (_activeScene != null)
+            {
+                Function.Call((Hash)STOP_AUDIO_SCENE, _activeScene);
+                _activeScene = null;
+            }
+            if (_frozen)
+            {
+                Function.Call((Hash)UNFREEZE_RADIO_STATION, _station);
+                Function.Call((Hash)SET_RADIO_AUTO_UNFREEZE, true);
+                _frozen = false;
+            }
+            if (_useDisableRadio && veh != null) Function.Call((Hash)SET_VEHICLE_RADIO_ENABLED, veh, true);
+        }
+
+        /// <summary>Громкость и срез фильтра «как у нативного радио» (GameAudioProbe образца). false — эфир не нужен.</summary>
+        private bool Mix(Vehicle veh, bool retuning, out float gain, out float cutoff)
+        {
+            cutoff = _interiorCutoff;
+            gain = 0f;
+            bool held = Function.Call<bool>((Hash)IS_PAUSE_MENU_ACTIVE) ||
+                        Function.Call<bool>((Hash)IS_CUTSCENE_PLAYING) ||
+                        Function.Call<bool>((Hash)IS_PLAYER_SWITCH_IN_PROGRESS) ||
+                        Function.Call<bool>((Hash)IS_SCREEN_FADED_OUT);
+            if (held || !Function.Call<bool>((Hash)GET_IS_VEHICLE_ENGINE_RUNNING, veh)) return false;
+            if (retuning || Function.Call<bool>((Hash)IS_RADIO_FADED_OUT) && !_holdingOff) return true;
+
+            int raw = Function.Call<int>((Hash)GET_MUSIC_VOL_SLIDER);
+            float slider = raw >= 0 && raw <= 10 ? raw / 10f : raw > 10 && raw <= 100 ? raw / 100f : 1f;
+            gain = (float)Math.Pow(slider, _sliderCurve);
+
+            var player = Game.Player.Character;
+            if (Function.Call<bool>((Hash)IS_SCRIPTED_CONVERSATION_ONGOING) ||
+                Function.Call<bool>((Hash)IS_MOBILE_PHONE_CALL_ONGOING) ||
+                Function.Call<bool>((Hash)IS_ANY_SPEECH_PLAYING, player) ||
+                Function.Call<bool>((Hash)IS_AMBIENT_SPEECH_PLAYING, player))
+                gain *= (float)Math.Pow(10, _duckDb / 20.0);
+
+            int roof = Function.Call<int>((Hash)GET_CONVERTIBLE_ROOF_STATE, veh);
+            int cls = Function.Call<int>((Hash)GET_VEHICLE_CLASS, veh);
+            if (roof == 1 || roof == 2 || roof == 3 || cls == 8 || cls == 13 || cls == 14) cutoff = 22050f;
+
+            float submerged = Function.Call<float>((Hash)GET_ENTITY_SUBMERGED_LEVEL, player);
+            if (submerged > 0.35f) { cutoff = 700f; gain *= 0.5f; }
+            return true;
+        }
+
+        /// <summary>Трек в штатных местах: лента уведомлений при смене трека и дисплей радио в машине.</summary>
+        private void ShowTrack()
+        {
+            if (_link == null || !_link.AgentAlive) return;
+            int seq = _link.MetaSeq;
+            string artist = _link.Artist, title = _link.Title;
+            string line = artist.Length > 0 ? artist + " - " + title : title;
+
+            if (seq != _metaSeq)
+            {
+                _metaSeq = seq;
+                if (_notify && line.Length > 0) FeedPost(_stationLabel + ": " + line);
+                _lastDash = DateTime.MinValue;
+            }
+            // Игра сама перерисовывает дисплей (на OFF), поэтому обновляем его раз в секунду.
+            if (_dashboard && (DateTime.UtcNow - _lastDash).TotalMilliseconds > 1000)
+            {
+                _lastDash = DateTime.UtcNow;
+                Dashboard(_stationLabel, artist, title);
+            }
+        }
+
+        private static void FeedPost(string text)
+        {
+            Function.Call((Hash)BEGIN_TEXT_COMMAND_THEFEED_POST, "STRING");
+            Function.Call((Hash)ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME, text);
+            Function.Call<int>((Hash)END_TEXT_COMMAND_THEFEED_POST_TICKER, false, false);
+        }
+
+        // Аргументы SET_RADIO — как у sahailee/GTA-Spotify-Radio: ("", станция, исполнитель, трек).
+        private void Dashboard(string station, string artist, string title)
+        {
+            if (_dashHandle == 0) _dashHandle = Function.Call<int>((Hash)REQUEST_SCALEFORM_MOVIE, "dashboard");
+            if (_dashHandle == 0 || !Function.Call<bool>((Hash)HAS_SCALEFORM_MOVIE_LOADED, _dashHandle)) return;
+            if (!Function.Call<bool>((Hash)BEGIN_SCALEFORM_MOVIE_METHOD, _dashHandle, "SET_RADIO")) return;
+            foreach (var p in new[] { "", station, artist, title })
+                Function.Call((Hash)SCALEFORM_MOVIE_METHOD_ADD_PARAM_PLAYER_NAME_STRING, p);
+            Function.Call((Hash)END_SCALEFORM_MOVIE_METHOD);
+        }
+
+        private void OnKeyDown(object sender, KeyEventArgs e)
+        {
+            if (!_owned || _link == null) return;
+            if (e.KeyCode == _keyPlayPause) _link.SendCommand(RadioLink.CmdPlayPause);
+            else if (e.KeyCode == _keyNext) _link.SendCommand(RadioLink.CmdNext);
+            else if (e.KeyCode == _keyPrev) _link.SendCommand(RadioLink.CmdPrev);
+        }
+
+        /// <summary>Агент живёт вместе с игрой: мод запускает его сам, агент закрывается после игры.</summary>
+        private void EnsureAgent()
+        {
+            if (_link == null) return;
+            if (_link.AgentAlive) { _agentMissingSince = DateTime.MinValue; _toldNoAgent = false; return; }
+            if (_link.AgentState == RadioLink.StateUserExit) return; // выключен пользователем из трея
+            var now = DateTime.UtcNow;
+            if (_agentMissingSince == DateTime.MinValue) { _agentMissingSince = now; return; }
+            if ((now - _agentMissingSince).TotalSeconds < 3 || (now - _lastAgentLaunch).TotalSeconds < 30) return;
+            _lastAgentLaunch = now;
+            try
+            {
+                string path = Path.GetFullPath(_agentPath);
+                if (File.Exists(path))
+                {
+                    Process.Start(new ProcessStartInfo(path) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(path) });
+                    Log("agent started: " + path);
+                }
+                else if (!_toldNoAgent)
+                {
+                    _toldNoAgent = true;
+                    Log("[ERROR] agent not found: " + path);
+                    FeedPost(_stationLabel + ": агент GtaRadio не найден, переустановите мод");
+                }
+            }
+            catch (Exception ex) { Log("[ERROR] agent start: " + ex.Message); }
+        }
+
+        private static void Log(string msg)
+        {
+            try
+            {
+                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GtaRadio");
+                Directory.CreateDirectory(dir);
+                File.AppendAllText(Path.Combine(dir, "mod.log"), DateTime.Now.ToString("HH:mm:ss.fff ") + msg + Environment.NewLine);
+            }
+            catch { }
+        }
+    }
+}
