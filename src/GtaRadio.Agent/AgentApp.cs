@@ -9,7 +9,6 @@ namespace GtaRadio.Agent;
 internal sealed class AgentConfig
 {
     public string? Source { get; set; }              // null = авто; иначе часть AppId/имени ("spotify", "yandex", ...)
-    public float Attenuation { get; set; } = 0.001f; // громкость плеера в микшере во время эфира (-60 дБ)
     public int PauseDelayMs { get; set; } = 1200;    // как у MichonGoddijn: короткий выход со станции не ставит паузу
     public bool PauseWhenOffAir { get; set; } = true;
     public string GithubUrl { get; set; } = "https://github.com/timoncool/aux-radio";
@@ -56,8 +55,6 @@ internal sealed class AgentApp : ApplicationContext
     private readonly System.Windows.Forms.Timer _slow = new() { Interval = 1000 };
 
     private RadioLink? _link;
-    private Streamer? _streamer;
-    private LinkPlayer? _localOut;   // режим Output=Agent: поток играет сам агент
     private List<PlayerSession> _sessions = new();
     private PlayerSession? _current;
     private bool _owned;
@@ -125,23 +122,6 @@ internal sealed class AgentApp : ApplicationContext
         if (_stopAt != 0 && now >= _stopAt)
         {
             _stopAt = 0;
-            if (!_owned) _streamer?.Stop();
-        }
-
-        // Режим Output=Agent: громкость и фильтр берём у мода; без игры вывод сам затихает (сторож).
-        if (_link.Output == RadioLink.OutputAgent && _streamer?.Running == true)
-        {
-            if (_localOut == null)
-            {
-                try { _localOut = LinkPlayer.Open(_link, false, 90); Log.W("[OK] agent output"); }
-                catch (Exception ex) { Log.W("[ERROR] agent output: " + ex.Message); }
-            }
-            if (alive) _localOut?.SetTarget(_link.Gain, _link.Cutoff);
-        }
-        else if (_localOut != null && _localOut.Silent)
-        {
-            _localOut.Dispose();
-            _localOut = null;
         }
 
         // Команды из игры.
@@ -162,8 +142,7 @@ internal sealed class AgentApp : ApplicationContext
             }
         }
 
-        _link.AgentBeat(_streamer?.Running == true ? RadioLink.StateStreaming
-                        : _current != null ? RadioLink.StateReady : RadioLink.StateNone,
+        _link.AgentBeat(_current != null ? RadioLink.StateReady : RadioLink.StateNone,
                         _current?.Playing == true);
     }
 
@@ -175,19 +154,6 @@ internal sealed class AgentApp : ApplicationContext
         if (!_current.Playing && (_pausedByUs || _cfg.PauseWhenOffAir))
             _ = _current.Session.TryPlayAsync().AsTask();
         _pausedByUs = false;
-        EnsureStreaming();
-    }
-
-    private void EnsureStreaming()
-    {
-        if (_link == null || _current == null) return;
-        if (_link.Output == RadioLink.OutputRemote) return; // пульт: плеер играет сам
-        _streamer ??= new Streamer(_link, _cfg.Attenuation);
-        uint game = GamePid();
-        uint root = ProcessTree.FindPlayerRoot(_current.AppId, game, SessionVolumes.LoudPids());
-        if (root == 0) { Log.W("[ERROR] player process not found for " + _current.AppId); return; }
-        if (_streamer.Running && _streamer.RootPid == root) return;
-        if (!_streamer.Start(root, game)) Notify("Не удалось захватить звук: " + _current.Name);
     }
 
     private async Task SlowTick()
@@ -216,10 +182,7 @@ internal sealed class AgentApp : ApplicationContext
 
             _sessions = await Smtc.ListAsync();
             var chosen = Smtc.Choose(_sessions, _cfg.Source, _current?.AppId);
-            if (chosen?.AppId != _current?.AppId && _streamer?.Running == true) _streamer.Stop();
             _current = chosen;
-
-            if (_owned) { EnsureStreaming(); _streamer?.Maintain(); }
 
             if (_link != null && _current != null)
             {
@@ -240,7 +203,7 @@ internal sealed class AgentApp : ApplicationContext
     internal PlayerSession? Current => _current;
     internal List<PlayerSession> Sessions => _sessions;
     internal AgentConfig Config => _cfg;
-    internal bool Streaming => _streamer?.Running == true;
+    internal bool Streaming => false;
     internal bool GameRunning => GamePid() != 0;
     internal string Status => StatusText();
 
@@ -294,7 +257,6 @@ internal sealed class AgentApp : ApplicationContext
             return _gameSeen ? "Игра не отвечает" : "Жду GTA V";
         }
         if (_current == null) return "Плеер не найден";
-        if (_streamer?.Running == true) return "В эфире: " + _current.Name;
         return "Готов: " + _current.Name;
     }
 
@@ -314,8 +276,6 @@ internal sealed class AgentApp : ApplicationContext
         Log.W("agent exit" + (byUser ? " (user)" : ""));
         _fast.Stop();
         _slow.Stop();
-        try { _streamer?.Stop(); } catch { }
-        try { _localOut?.Dispose(); } catch { }
         SessionVolumes.RestoreAll();
         try { if (byUser) _link?.AgentBeat(RadioLink.StateUserExit, false); } catch { }
         try { _link?.Dispose(); } catch { }

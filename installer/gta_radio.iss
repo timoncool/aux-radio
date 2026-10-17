@@ -3,7 +3,7 @@
 ; Сборка: build.ps1 собирает payload\ и вызывает ISCC.exe (см. docs\DEEPSEEK.md).
 ;
 ; Что ставится:
-;   scripts\GtaRadio.Mod.dll + NAudio.Core.dll + NAudio.Wasapi.dll + GtaRadio.Mod.ini  (мод)
+;   scripts\GtaRadio.Mod.dll + GtaRadio.Mod.ini  (мод)
 ;   GtaRadio\GtaRadio.Agent.exe                                                      (агент в трее)
 ;   GtaRadio\tools\gta-patch\*, GtaRadio\tools\GtaRadio.Gxt2.exe, patch_station.ps1     (имя станции)
 ;   ScriptHookV / SHVDN Enhanced — только если их ещё нет в папке игры.
@@ -12,6 +12,9 @@
 
 #define AppVer "2.0"
 #define AppGuid "{A7F3D2C1-6B84-4E21-9C55-2F8D1A7B3C90}"
+#define Boosty "https://boosty.to/neuro_art"
+#define Telegram "https://t.me/nerual_dreming"
+#define Github "https://github.com/timoncool/aux-radio"
 
 [Setup]
 AppId={{#AppGuid}
@@ -21,6 +24,7 @@ AppVerName=AUX Radio {#AppVer} — Яндекс Музыка, Spotify и люб�
 AppPublisher=AUX Radio
 DefaultDirName={code:DefaultGameDir}
 DirExistsWarning=no
+DisableWelcomePage=no
 AppendDefaultDirName=no
 DisableProgramGroupPage=yes
 UsePreviousAppDir=yes
@@ -31,7 +35,9 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 OutputDir=output
 OutputBaseFilename=AUX_Radio_Setup_{#AppVer}
-WizardStyle=modern
+WizardStyle=modern dark includetitlebar hidebevels
+ShowLanguageDialog=no
+WizardBackImageFile=art\back_radio.png
 WizardImageFile=art\wizard_radio.png
 WizardSmallImageFile=art\small_radio.png
 UninstallFilesDir={app}\GtaRadio\uninstall
@@ -65,10 +71,12 @@ ru.SetupWindowTitle=Установка — AUX Radio
 en.SetupWindowTitle=Setup — AUX Radio
 ru.WelcomeLabel1=AUX Radio
 en.WelcomeLabel1=AUX Radio
-ru.WelcomeLabel2=Радиостанция Non-Stop-Pop превращается в AUX Radio: в машине играет то, что звучит у тебя в Яндекс Музыке, Spotify или любом другом плеере.%n%nГромкость следует игре: ползунок музыки, пауза, катсцены, разговоры. Вышел из машины или переключил станцию — плеер на паузе.%n%nПеревод и радио-озвучка не затрагиваются: меняется только название одной станции, с резервной копией и откатом при удалении.
-en.WelcomeLabel2=Non-Stop-Pop becomes AUX Radio: the car plays whatever is playing in your Spotify, Yandex Music or any other player.%n%nVolume follows the game: music slider, pause, cutscenes, conversations. Leave the car or switch the station — the player pauses.%n%nTranslations and radio voice-over are untouched: only one station name changes, with a backup and a rollback on uninstall.
+ru.WelcomeLabel2=Музыка из Spotify и Яндекс Музыки — как радиостанция в GTA V Enhanced.%n%nМод сам находит играющий плеер на компьютере (Spotify, Яндекс Музыка, AIMP, VLC, foobar2000 и другие), глушит штатное радио и управляет плеером. Плеер играет сам, звук не захватывается. В игре видно источник, трек и исполнителя.%n%nФайлы игры и твоя озвучка не изменяются: меняется только название и логотип станции в mods, всё удаляется одной кнопкой.
+en.WelcomeLabel2=Music from Spotify and Yandex Music as a GTA V Enhanced radio station.%n%nThe mod finds the player running on your PC (Spotify, Yandex Music, AIMP, VLC, foobar2000 and others), mutes the stock radio and controls the player. The player plays by itself, no audio is captured. The game shows the source, track and artist.%n%nGame files and your voice-over stay untouched: only the station name and logo in mods change, everything is removed with one button.
 ru.SelectDirLabel3=Укажите папку GTA V Enhanced (в ней лежит GTA5_Enhanced.exe).
 en.SelectDirLabel3=Choose the GTA V Enhanced folder (it contains GTA5_Enhanced.exe).
+ru.SelectComponentsDesc=AUX Radio: своя музыка из Spotify и Яндекс Музыки вместо Non-Stop-Pop
+en.SelectComponentsDesc=AUX Radio: your Spotify and Yandex Music instead of Non-Stop-Pop
 ru.ReadyLabel1=Будут установлены мод, агент и название станции. Перед изменениями создаются резервные копии.
 en.ReadyLabel1=The mod, the agent and the station name will be installed. Backups are made before changes.
 ru.FinishedHeadingLabel=Готово
@@ -91,15 +99,13 @@ Name: "full"; Description: "Полная установка"
 Name: "custom"; Description: "Выборочная"; Flags: iscustom
 
 [Components]
-Name: "mod"; Description: "AUX Radio (мод и агент)"; Types: full custom; Flags: fixed
-Name: "rename"; Description: "Название станции «AUX Radio» в колесе радио"; Types: full custom
-Name: "shv"; Description: "Script Hook V + ScriptHookVDotNet Enhanced (только если их ещё нет)"; Types: full custom
+Name: "mod"; Description: "AUX Radio: мод, агент и окно статуса"; Types: full custom; Flags: fixed
+Name: "rename"; Description: "Название и логотип станции AUX в колесе радио (с откатом при удалении)"; Types: full custom
+Name: "shv"; Description: "Загрузчики Script Hook V и ScriptHookVDotNet Enhanced (только если их ещё нет)"; Types: full custom
 
 [Files]
 Source: "payload\scripts\GtaRadio.Mod.dll"; DestDir: "{app}\scripts"; Components: mod; Flags: ignoreversion
-Source: "payload\scripts\NAudio.Core.dll"; DestDir: "{app}\scripts"; Components: mod; Flags: ignoreversion
-Source: "payload\scripts\NAudio.Wasapi.dll"; DestDir: "{app}\scripts"; Components: mod; Flags: ignoreversion
-Source: "payload\scripts\GtaRadio.Mod.ini"; DestDir: "{app}\scripts"; Components: mod; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "payload\scripts\GtaRadio.Mod.ini"; DestDir: "{app}\scripts"; Components: mod; Flags: ignoreversion
 Source: "payload\GtaRadio\*"; DestDir: "{app}\GtaRadio"; Components: mod; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "patch_station.ps1"; DestDir: "{app}\GtaRadio\tools"; Components: mod; Flags: ignoreversion
 Source: "patch_logo.ps1"; DestDir: "{app}\GtaRadio\tools"; Components: mod; Flags: ignoreversion
@@ -127,7 +133,33 @@ Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Fil
 ; Вернуть исходный логотип Pop в hud.ytd до удаления файлов.
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\GtaRadio\tools\patch_logo.ps1"" -GameDir ""{app}"" -Uninstall"; Flags: runhidden waituntilterminated; RunOnceId: "RestoreLogo"
 
+[Run]
+Filename: "{#Telegram}"; Description: "Открыть Telegram — новости и обновления"; Flags: postinstall shellexec nowait runasoriginaluser skipifsilent
+Filename: "{#Boosty}"; Description: "Открыть Boosty — поддержать проект"; Flags: postinstall shellexec nowait runasoriginaluser skipifsilent unchecked
+Filename: "{#Github}"; Description: "Открыть GitHub — исходники и релизы"; Flags: postinstall shellexec nowait runasoriginaluser skipifsilent unchecked
+
 [Code]
+procedure LinkClick(Sender: TObject; const Link: String; LinkType: TSysLinkType);
+var
+  Code: Integer;
+begin
+  ShellExecAsOriginalUser('open', Link, '', '', SW_SHOWNORMAL, ewNoWait, Code);
+end;
+
+procedure InitializeWizard;
+var
+  Info: TNewLinkLabel;
+begin
+  WizardForm.ComponentsList.Height := ScaleY(96);
+  Info := TNewLinkLabel.Create(WizardForm);
+  Info.Parent := WizardForm.SelectComponentsPage;
+  Info.Caption := 'Ссылки: <a href="{#Boosty}">Boosty</a>  ·  <a href="{#Telegram}">Telegram</a>  ·  <a href="{#Github}">GitHub</a>';
+  Info.OnLinkClick := @LinkClick;
+  Info.UseVisualStyle := True;
+  Info.Left := WizardForm.ComponentsList.Left;
+  Info.Top := WizardForm.ComponentsList.Top + WizardForm.ComponentsList.Height + ScaleY(4);
+end;
+
 function DefaultGameDir(Param: String): String;
 var
   P: String;

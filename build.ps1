@@ -50,7 +50,7 @@ $agentDir = Join-Path $payload "GtaRadio"
 $tools = Join-Path $agentDir "tools"
 New-Item -ItemType Directory -Force -Path $scripts, $tools, (Join-Path $payload "shv") | Out-Null
 $modOut = Join-Path $root "src\GtaRadio.Mod\bin\Release"
-foreach ($f in "GtaRadio.Mod.dll", "NAudio.Core.dll", "NAudio.Wasapi.dll") { Copy-Item (Join-Path $modOut $f) $scripts }
+foreach ($f in "GtaRadio.Mod.dll") { Copy-Item (Join-Path $modOut $f) $scripts }
 Copy-Item (Join-Path $root "src\GtaRadio.Mod\GtaRadio.Mod.ini") $scripts
 Copy-Item (Join-Path $root "out\agent\GtaRadio.Agent.exe") $agentDir
 Copy-Item (Join-Path $root "out\gxt2\GtaRadio.Gxt2.exe") $tools

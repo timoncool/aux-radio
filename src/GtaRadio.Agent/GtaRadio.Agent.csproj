@@ -11,8 +11,8 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="NAudio.Core" Version="2.2.1" />
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
     <Compile Include="..\Shared\RadioLink.cs" Link="Shared\RadioLink.cs" />
-    <Compile Include="..\Shared\LinkPlayer.cs" Link="Shared\LinkPlayer.cs" />
   </ItemGroup>
 </Project>

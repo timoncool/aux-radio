@@ -68,15 +68,10 @@ namespace GtaRadio.Mod
         private readonly string _stationLabel;
         private readonly bool _useScene, _useFreeze, _useVehicleOff, _useDisableRadio;
         private readonly string[] _scenes;
-        private readonly float _volumeDb, _sliderCurve, _duckDb, _interiorCutoff;
         private readonly bool _notify, _dashboard, _wheelTrack;
         private readonly Keys _keyPlayPause, _keyNext, _keyPrev;
         private readonly string _agentPath;
 
-        private readonly int _fadeMs;
-        private readonly int _output;
-
-        private LinkPlayer? _player;
         private RadioLink? _link;
         private bool _started;
         private int _errors;
@@ -110,17 +105,6 @@ namespace GtaRadio.Mod
             _useDisableRadio = strategies.Contains("disableradio");
             _scenes = Settings.GetValue("Radio", "MuteScenes", "CAR_MOD_RADIO_MUTE_SCENE,MP_JOB_CHANGE_RADIO_MUTE,MUTES_RADIO_SCENE")
                 .Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            _volumeDb = Settings.GetValue("Audio", "VolumeDb", -6.0f);
-            _sliderCurve = Settings.GetValue("Audio", "SliderCurve", 2.0f);
-            _duckDb = Settings.GetValue("Audio", "DialogueDuckDb", -11.0f);
-            _interiorCutoff = Settings.GetValue("Audio", "InteriorCutoffHz", 15000f);
-            _fadeMs = Settings.GetValue("Audio", "FadeMs", 90);
-            // Game — поток играет игра (основной); Agent — поток играет агент (запасной);
-            // Remote — без захвата: плеер играет сам, мод глушит Pop и ставит плеер на play/pause.
-            string output = Settings.GetValue("Audio", "Output", "Game");
-            _output = output.Equals("Agent", StringComparison.OrdinalIgnoreCase) ? RadioLink.OutputAgent
-                    : output.Equals("Remote", StringComparison.OrdinalIgnoreCase) ? RadioLink.OutputRemote
-                    : RadioLink.OutputGame;
             _notify = Settings.GetValue("Display", "TrackNotifications", true);
             _dashboard = Settings.GetValue("Display", "Dashboard", true);
             _wheelTrack = Settings.GetValue("Display", "WheelTrack", true);
@@ -137,10 +121,9 @@ namespace GtaRadio.Mod
                 try { Release(CurrentVehicle()); } catch { }
                 try { ClearWheel(); } catch { }
                 try { _link?.GameBeat(false); } catch { }
-                try { _player?.Dispose(); } catch { }
             };
             Interval = 0;
-            Log("ctor: ok, station=" + _station + " output=" + output);
+            Log("ctor: ok, station=" + _station);
         }
 
         private void Start()
@@ -150,25 +133,10 @@ namespace GtaRadio.Mod
             try
             {
                 int rate = 48000;
-                if (_output == RadioLink.OutputGame)
-                {
-                    try { rate = LinkPlayer.DeviceSampleRate(); }
-                    catch (Exception ex) { Log("[ERROR] device: " + ex.Message); }
-                }
                 _link = RadioLink.Create(rate);
                 Log("start: link ok, rate=" + rate);
             }
             catch (Exception ex) { Log("[ERROR] link: " + ex); }
-
-            if (_link != null && _output == RadioLink.OutputGame)
-            {
-                try
-                {
-                    _player = LinkPlayer.Open(_link, false, _fadeMs);
-                    Log("start: audio ok (game output)");
-                }
-                catch (Exception ex) { Log("[ERROR] audio: " + ex); }
-            }
 
             try
             {
@@ -176,7 +144,7 @@ namespace GtaRadio.Mod
                 Function.Call((Hash)SET_USER_RADIO_CONTROL_ENABLED, true);
             }
             catch (Exception ex) { Log("[ERROR] radio natives: " + ex.Message); }
-            Log("[OK] loaded, station=" + _station + " audio=" + (_player != null) + " output=" + _output);
+            Log("[OK] loaded, station=" + _station);
         }
 
         private static Vehicle? CurrentVehicle()
@@ -228,16 +196,9 @@ namespace GtaRadio.Mod
             else if (!owned && _owned) Release(veh);
             _owned = owned;
 
-            if (_owned && !retuning && veh != null) ApplyFrameMutes(veh);
-
-            float gain = 0f, cutoff = 22050f;
-            bool audible = false;
-            if (_owned && veh != null) audible = Mix(veh, retuning, out gain, out cutoff);
-            float level = gain * (float)Math.Pow(10, _volumeDb / 20.0);
-            _player?.SetTarget(level, cutoff);
-            _link?.SetMix(level, cutoff, _output);
+            if (_owned && veh != null) ApplyFrameMutes(veh);
             // Агенту — «эфир нужен»: вне машины, в паузе, на катсцене, без двигателя плеер через 1.2 с на паузе.
-            _link?.GameBeat(audible || _owned && veh != null && retuning);
+            _link?.GameBeat(_owned && veh != null);
 
             if (_owned && veh != null) ShowTrack();
             if (_owned && _wheelTrack) UpdateWheel();
@@ -290,38 +251,6 @@ namespace GtaRadio.Mod
                 _frozen = false;
             }
             if (_useDisableRadio && veh != null) Function.Call((Hash)SET_VEHICLE_RADIO_ENABLED, veh, true);
-        }
-
-        /// <summary>Громкость и срез фильтра «как у нативного радио» (GameAudioProbe образца). false — эфир не нужен.</summary>
-        private bool Mix(Vehicle veh, bool retuning, out float gain, out float cutoff)
-        {
-            cutoff = _interiorCutoff;
-            gain = 0f;
-            bool held = Function.Call<bool>((Hash)IS_PAUSE_MENU_ACTIVE) ||
-                        Function.Call<bool>((Hash)IS_CUTSCENE_PLAYING) ||
-                        Function.Call<bool>((Hash)IS_PLAYER_SWITCH_IN_PROGRESS) ||
-                        Function.Call<bool>((Hash)IS_SCREEN_FADED_OUT);
-            if (held || !Function.Call<bool>((Hash)GET_IS_VEHICLE_ENGINE_RUNNING, veh)) return false;
-            if (retuning || Function.Call<bool>((Hash)IS_RADIO_FADED_OUT) && !_holdingOff) return true;
-
-            int raw = Function.Call<int>((Hash)GET_MUSIC_VOL_SLIDER);
-            float slider = raw >= 0 && raw <= 10 ? raw / 10f : raw > 10 && raw <= 100 ? raw / 100f : 1f;
-            gain = (float)Math.Pow(slider, _sliderCurve);
-
-            var player = Game.Player.Character;
-            if (Function.Call<bool>((Hash)IS_SCRIPTED_CONVERSATION_ONGOING) ||
-                Function.Call<bool>((Hash)IS_MOBILE_PHONE_CALL_ONGOING) ||
-                Function.Call<bool>((Hash)IS_ANY_SPEECH_PLAYING, player) ||
-                Function.Call<bool>((Hash)IS_AMBIENT_SPEECH_PLAYING, player))
-                gain *= (float)Math.Pow(10, _duckDb / 20.0);
-
-            int roof = Function.Call<int>((Hash)GET_CONVERTIBLE_ROOF_STATE, veh);
-            int cls = Function.Call<int>((Hash)GET_VEHICLE_CLASS, veh);
-            if (roof == 1 || roof == 2 || roof == 3 || cls == 8 || cls == 13 || cls == 14) cutoff = 22050f;
-
-            float submerged = Function.Call<float>((Hash)GET_ENTITY_SUBMERGED_LEVEL, player);
-            if (submerged > 0.35f) { cutoff = 700f; gain *= 0.5f; }
-            return true;
         }
 
         /// <summary>Трек в штатных местах: лента уведомлений при смене трека и дисплей радио в машине.</summary>
