@@ -55,7 +55,7 @@ Copy-Item (Join-Path $root "src\GtaRadio.Mod\GtaRadio.Mod.ini") $scripts
 Copy-Item (Join-Path $root "out\agent\GtaRadio.Agent.exe") $agentDir
 Copy-Item (Join-Path $root "out\gxt2\GtaRadio.Gxt2.exe") $tools
 Copy-Item -Recurse (Join-Path $GtaPatchDir "*") (Join-Path $tools "gta-patch")
-foreach ($f in "ScriptHookV.dll", "dinput8.dll", "ScriptHookVDotNet.asi", "ScriptHookVDotNet3.dll", "ScriptHookVDotNet.ini") {
+foreach ($f in "ScriptHookV.dll", "dinput8.dll", "ScriptHookVDotNet.asi", "ScriptHookVDotNet3.dll", "ScriptHookVDotNet.ini", "MinHook.x64.dll") {
     Copy-Item (Join-Path $ShvDir $f) (Join-Path $payload "shv")
 }
 

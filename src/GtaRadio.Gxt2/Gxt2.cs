@@ -11,6 +11,9 @@ namespace GtaRadio.Gxt2;
 ///
 /// GtaRadio.Gxt2.exe get &lt;file&gt; &lt;label|0xHASH&gt;
 /// GtaRadio.Gxt2.exe set &lt;file&gt; &lt;label|0xHASH&gt; &lt;text&gt;
+/// GtaRadio.Gxt2.exe add &lt;file&gt; &lt;label&gt; &lt;text&gt;   (новая метка; если есть — как set)
+/// GtaRadio.Gxt2.exe remove &lt;file&gt; &lt;label&gt;       (убрать свою метку)
+/// Новые метки вставляются с сохранением сортировки по хешу (игра ищет метку двоичным поиском).
 /// </summary>
 internal static class Program
 {
@@ -108,7 +111,41 @@ internal static class Program
                 Console.Out.Write("[OK] " + args[2] + " = " + args[3]);
                 return 0;
             }
-            Console.Error.WriteLine("usage: GtaRadio.Gxt2 get <file> <label> | set <file> <label> <text>");
+            if (args.Length >= 4 && args[0] == "add")
+            {
+                uint h = ParseLabel(args[2]);
+                var data = File.ReadAllBytes(args[1]);
+                var list = Read(data);
+                int idx = list.FindIndex(x => x.Hash == h);
+                if (idx >= 0) list[idx] = (h, args[3]);
+                else
+                {
+                    bool sorted = true;
+                    for (int i = 1; i < list.Count; i++) if (list[i - 1].Hash > list[i].Hash) { sorted = false; break; }
+                    int at = sorted ? list.FindIndex(x => x.Hash > h) : -1;
+                    if (at < 0) at = list.Count;
+                    list.Insert(at, (h, args[3]));
+                }
+                var outBytes = Write(list);
+                var check = Read(outBytes);
+                if (check.Count != list.Count || check.FindIndex(x => x.Hash == h && x.Text == args[3]) < 0)
+                    throw new InvalidDataException("verify failed");
+                File.WriteAllBytes(args[1], outBytes);
+                Console.Out.Write("[OK] add " + args[2]);
+                return 0;
+            }
+            if (args.Length >= 3 && args[0] == "remove")
+            {
+                uint h = ParseLabel(args[2]);
+                var data = File.ReadAllBytes(args[1]);
+                var list = Read(data);
+                int removed = list.RemoveAll(x => x.Hash == h);
+                if (removed == 0) { Console.Out.Write("[OK] absent " + args[2]); return 0; }
+                File.WriteAllBytes(args[1], Write(list));
+                Console.Out.Write("[OK] removed " + args[2]);
+                return 0;
+            }
+            Console.Error.WriteLine("usage: GtaRadio.Gxt2 get|set|add|remove <file> <label> [text]");
             return 1;
         }
         catch (Exception ex)

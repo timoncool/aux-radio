@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using GTA;
 using GTA.Native;
@@ -59,6 +60,15 @@ namespace GtaRadio.Mod
         private const ulong BEGIN_SCALEFORM_MOVIE_METHOD = 0xF6E48914C7A8694E;
         private const ulong SCALEFORM_MOVIE_METHOD_ADD_PARAM_PLAYER_NAME_STRING = 0xE83A3E3557A56640;
         private const ulong END_SCALEFORM_MOVIE_METHOD = 0xC6796A8FFA375E53;
+        private const ulong GET_AUDIBLE_MUSIC_TRACK_TEXT_ID = 0x50B196FC9ED6545B;
+        private const ulong GET_FILENAME_FOR_AUDIO_CONVERSATION = 0x7B5280EBA9840C72; // текст метки (const char*)
+
+        // Свои метки в global.gxt2 (добавляет установщик): сюда пишется артист и трек плеера,
+        // а метки трека Pop ("<id>A" / "<id>S") перенаправляются на них через SHVDN Enhanced
+        // (Game.AddCustomGxtEntry) — так центр колеса показывает трек плеера.
+        private const string ArtistLabel = "GTARADIO_ARTIST";
+        private const string TitleLabel = "GTARADIO_TITLE";
+        private const int LabelBytes = 127;
 
         // Настройки: scripts\GtaRadio.Mod.ini
         private readonly string _station;
@@ -66,7 +76,7 @@ namespace GtaRadio.Mod
         private readonly bool _useScene, _useFreeze, _useVehicleOff, _useDisableRadio;
         private readonly string[] _scenes;
         private readonly float _volumeDb, _sliderCurve, _duckDb, _interiorCutoff;
-        private readonly bool _notify, _dashboard;
+        private readonly bool _notify, _dashboard, _wheelTrack;
         private readonly Keys _keyPlayPause, _keyNext, _keyPrev;
         private readonly string _agentPath;
 
@@ -85,6 +95,11 @@ namespace GtaRadio.Mod
         private DateTime _lastAgentLaunch = DateTime.MinValue;
         private DateTime _agentMissingSince = DateTime.MinValue;
         private bool _toldNoAgent;
+        private int _wheelTrackId;
+        private uint _wheelA, _wheelS;
+        private string _wheelArtist = "", _wheelTitle = "";
+        private bool? _wheelLabelsPresent;
+        private DateTime _lastWheelCheck = DateTime.MinValue;
 
         static StationMod()
         {
@@ -97,7 +112,7 @@ namespace GtaRadio.Mod
             Log("ctor: start");
             _station = Settings.GetValue("Radio", "Station", "RADIO_02_POP");
             _stationLabel = Settings.GetValue("Radio", "StationLabel", "GTA Radio");
-            var strategies = Settings.GetValue("Radio", "MuteStrategies", "Scene,Freeze,VehicleOff").ToLowerInvariant();
+            var strategies = Settings.GetValue("Radio", "MuteStrategies", "Scene,Freeze").ToLowerInvariant();
             _useScene = strategies.Contains("scene");
             _useFreeze = strategies.Contains("freeze");
             _useVehicleOff = strategies.Contains("vehicleoff");
@@ -117,6 +132,7 @@ namespace GtaRadio.Mod
                     : RadioLink.OutputGame;
             _notify = Settings.GetValue("Display", "TrackNotifications", true);
             _dashboard = Settings.GetValue("Display", "Dashboard", true);
+            _wheelTrack = Settings.GetValue("Display", "WheelTrack", true);
             _keyPlayPause = Settings.GetValue("Controls", "PlayPause", Keys.F7);
             _keyNext = Settings.GetValue("Controls", "Next", Keys.F8);
             _keyPrev = Settings.GetValue("Controls", "Previous", Keys.F6);
@@ -128,6 +144,7 @@ namespace GtaRadio.Mod
             Aborted += (_, __) =>
             {
                 try { Release(CurrentVehicle()); } catch { }
+                try { ClearWheel(); } catch { }
                 try { _link?.GameBeat(false); } catch { }
                 try { _player?.Dispose(); } catch { }
             };
@@ -189,7 +206,8 @@ namespace GtaRadio.Mod
         {
             if (!_started)
             {
-                if (Game.IsLoading || Game.Player.Character == null || !Game.Player.Character.Exists()) return;
+                // SHV 3351+ запускает скрипты только после экрана загрузки; ждём персонажа.
+                if (Game.Player.Character == null || !Game.Player.Character.Exists()) return;
                 Start();
             }
             try { Frame(); }
@@ -231,6 +249,8 @@ namespace GtaRadio.Mod
             _link?.GameBeat(audible || _owned && veh != null && retuning);
 
             if (_owned && veh != null) ShowTrack();
+            if (_owned && _wheelTrack) UpdateWheel();
+            else if (_wheelTrackId != 0) ClearWheel();
             EnsureAgent();
         }
 
@@ -266,6 +286,7 @@ namespace GtaRadio.Mod
         private void Release(Vehicle? veh)
         {
             _holdingOff = false;
+            ClearWheel();
             if (_activeScene != null)
             {
                 Function.Call((Hash)STOP_AUDIO_SCENE, _activeScene);
@@ -332,6 +353,103 @@ namespace GtaRadio.Mod
                 _lastDash = DateTime.UtcNow;
                 Dashboard(_stationLabel, artist, title);
             }
+        }
+
+        /// <summary>Центр колеса: метки текущего (замороженного) трека Pop -> наши метки с треком плеера.</summary>
+        private void UpdateWheel()
+        {
+            if (_link == null || !_link.AgentAlive) return;
+            if (_wheelLabelsPresent == null)
+            {
+                _wheelLabelsPresent = Game.GetLocalizedString(unchecked((int)Joaat(ArtistLabel))).Length > 0 &&
+                                      Game.GetLocalizedString(unchecked((int)Joaat(TitleLabel))).Length > 0;
+                Log("wheel labels present: " + _wheelLabelsPresent);
+            }
+
+            int id = Function.Call<int>((Hash)GET_AUDIBLE_MUSIC_TRACK_TEXT_ID);
+            if (id != 0 && id != -1 && id != _wheelTrackId)
+            {
+                ClearWheel();
+                string key = id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (Game.GetLocalizedString(key + "A").Length == 0)
+                    key = unchecked((uint)id).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                _wheelA = Joaat(key + "A");
+                _wheelS = Joaat(key + "S");
+                // Без своих меток (установщик не дописал gxt2) — хотя бы пустая строка вместо чужого трека.
+                uint toA = _wheelLabelsPresent == true ? Joaat(ArtistLabel) : 0u;
+                uint toS = _wheelLabelsPresent == true ? Joaat(TitleLabel) : 0u;
+                Game.UpdateCustomGxtEntry(_wheelA, toA);
+                Game.UpdateCustomGxtEntry(_wheelS, toS);
+                _wheelTrackId = id;
+                Log("wheel track " + key + " -> GTA Radio labels");
+            }
+            if (_wheelLabelsPresent != true) return;
+
+            string artist = _link.Artist, title = _link.Title;
+            var now = DateTime.UtcNow;
+            if (artist == _wheelArtist && title == _wheelTitle && (now - _lastWheelCheck).TotalMilliseconds < 1000) return;
+            _lastWheelCheck = now;
+            if (WriteLabel(ArtistLabel, artist, _wheelArtist)) _wheelArtist = artist;
+            if (WriteLabel(TitleLabel, title, _wheelTitle)) _wheelTitle = title;
+        }
+
+        /// <summary>
+        /// Пишет текст в свою метку прямо в загруженной таблице текстов, с нулём на конце.
+        /// Game.SetLocalizedString добивает строку пробелами до исходной длины — в центре колеса
+        /// текст уехал бы вбок. Пишем, только если по указателю наша метка: пробелы-плейсхолдер
+        /// (после загрузки/смены языка) или наш прошлый текст; не больше LabelBytes байт.
+        /// </summary>
+        private static bool WriteLabel(string label, string text, string? previous)
+        {
+            IntPtr p = Function.Call<IntPtr>((Hash)GET_FILENAME_FOR_AUDIO_CONVERSATION, label);
+            if (p == IntPtr.Zero) return false;
+            var cur = new byte[LabelBytes + 1];
+            Marshal.Copy(p, cur, 0, cur.Length);
+            int len = Array.IndexOf(cur, (byte)0);
+            if (len < 0) return false;
+            string now = System.Text.Encoding.UTF8.GetString(cur, 0, len);
+            string fitted = FitUtf8(text);
+            if (now == fitted) return true;
+            bool placeholder = len == LabelBytes && now.Trim().Length == 0;
+            if (!placeholder && now != FitUtf8(previous ?? "")) return false;
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(fitted);
+            var buf = new byte[bytes.Length + 1];
+            Buffer.BlockCopy(bytes, 0, buf, 0, bytes.Length);
+            Marshal.Copy(buf, 0, p, buf.Length);
+            return true;
+        }
+
+        private void ClearWheel()
+        {
+            if (_wheelTrackId == 0) return;
+            try
+            {
+                Game.RemoveCustomGxtEntry(_wheelA, out _);
+                Game.RemoveCustomGxtEntry(_wheelS, out _);
+            }
+            catch (Exception ex) { Log("[ERROR] wheel clear: " + ex.Message); }
+            _wheelTrackId = 0;
+        }
+
+        /// <summary>Обрезка по границе символа: SetLocalizedString режет байты и иначе ломает кириллицу.</summary>
+        private static string FitUtf8(string text)
+        {
+            text ??= "";
+            var enc = System.Text.Encoding.UTF8;
+            while (enc.GetByteCount(text) > LabelBytes - 1) text = text.Substring(0, text.Length - 1);
+            return text;
+        }
+
+        private static uint Joaat(string s)
+        {
+            uint h = 0;
+            foreach (byte c in System.Text.Encoding.UTF8.GetBytes(s.ToLowerInvariant()))
+            {
+                unchecked { h += c; h += h << 10; h ^= h >> 6; }
+            }
+            unchecked { h += h << 3; h ^= h >> 11; h += h << 15; }
+            return h;
         }
 
         private static void FeedPost(string text)

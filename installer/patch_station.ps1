@@ -1,4 +1,4 @@
-﻿# Переименование станции RADIO_02_POP в "GTA Radio" и откат.
+﻿# Переименование станции RADIO_02_POP в "GTA Radio", метки текста трека для колеса, и откат.
 #
 # Правится только одна строка GXT2 (метка RADIO_02_POP = 0xB5DD6F19) в оверлее mods\update\update.rpf,
 # в американском и русском global.gxt2. Остальные строки — перевод и радио-озвучка — остаются
@@ -53,6 +53,14 @@ function Put-Entry($lang, $file) {
     if ($LASTEXITCODE -ne 0) { throw "put failed for $lang (exit $LASTEXITCODE)" }
 }
 
+$WheelLabels = @("GTARADIO_ARTIST", "GTARADIO_TITLE")
+$Placeholder = " " * 127
+
+function Has-Label($file, $label) {
+    & $gxt2 get $file $label *> $null
+    return ($LASTEXITCODE -eq 0)
+}
+
 function Gxt2($argsList) {
     $out = & $gxt2 @argsList 2>&1
     if ($LASTEXITCODE -ne 0) { throw "gxt2 $($argsList -join ' '): $out" }
@@ -99,18 +107,32 @@ foreach ($lang in $langs) {
         $value = $Text
     }
 
-    if ($current -eq $value) { Log "[OK] $lang already '$value'"; continue }
-    Gxt2 @("set", $file, $Label, $value) | Out-Null
-    $check = Gxt2 @("get", $file, $Label)
-    if ($check -ne $value) { throw "verify failed for $lang" }
-    if ($DryRun) { Log "[DRY] $lang '$current' -> '$value' (not written)"; continue }
+    # Две свои метки для текста трека в колесе радио (мод пишет туда артиста и название в эфире).
+    # Плейсхолдер 127 пробелов: SHVDN SetLocalizedString пишет поверх строки той же длины.
+    $changed = $false
+    if ($current -ne $value) {
+        Gxt2 @("set", $file, $Label, $value) | Out-Null
+        if ((Gxt2 @("get", $file, $Label)) -ne $value) { throw "verify failed for $lang" }
+        $changed = $true
+    }
+    foreach ($wl in $WheelLabels) {
+        $has = Has-Label $file $wl
+        if ($Uninstall -and $has) { Gxt2 @("remove", $file, $wl) | Out-Null; $changed = $true }
+        elseif (-not $Uninstall -and -not $has) { Gxt2 @("add", $file, $wl, $Placeholder) | Out-Null; $changed = $true }
+    }
+
+    if (-not $changed) { Log "[OK] $lang already '$value', wheel labels ok"; continue }
+    if ($DryRun) { Log "[DRY] $lang '$current' -> '$value', wheel labels updated (not written)"; continue }
     Put-Entry $lang $file
 
     # Проверка извлечением из RPF.
     $verify = Extract-Entry $lang (Join-Path $work "verify_$lang")
     $after = Gxt2 @("get", $verify, $Label)
     if ($after -ne $value) { throw "rpf verify failed for ${lang}: '$after'" }
-    Log "[OK] $lang '$current' -> '$value'"
+    foreach ($wl in $WheelLabels) {
+        if ((Has-Label $verify $wl) -eq [bool]$Uninstall) { throw "rpf verify failed for ${lang}: label $wl" }
+    }
+    Log "[OK] $lang '$current' -> '$value', wheel labels $(if ($Uninstall) { 'removed' } else { 'present' })"
 }
 
 Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue

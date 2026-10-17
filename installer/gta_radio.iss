@@ -74,6 +74,9 @@ Source: "payload\shv\dinput8.dll"; DestDir: "{app}"; Components: shv; Flags: onl
 Source: "payload\shv\ScriptHookVDotNet.asi"; DestDir: "{app}"; Components: shv; Flags: onlyifdoesntexist uninsneveruninstall
 Source: "payload\shv\ScriptHookVDotNet3.dll"; DestDir: "{app}"; Components: shv; Flags: onlyifdoesntexist uninsneveruninstall
 Source: "payload\shv\ScriptHookVDotNet.ini"; DestDir: "{app}"; Components: shv; Flags: onlyifdoesntexist uninsneveruninstall
+; SHVDN Enhanced без MinHook не стартует (DEEPSEEK-RESULT-2/3). ScriptHookVDotNet2.dll не ставим:
+; с ним SHVDN не может писать лог (DEEPSEEK-RESULT-3), моду нужен только API v3.
+Source: "payload\shv\MinHook.x64.dll"; DestDir: "{app}"; Components: shv; Flags: onlyifdoesntexist uninsneveruninstall
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\GtaRadio\tools"
