@@ -12,7 +12,7 @@
 
 **English** · **[Русский](README.ru.md)**
 
-![AUX Radio in the GTA V radio wheel](docs/screenshots/wheel.png)
+![AUX Radio in the GTA V radio wheel](docs/screenshots/hero.png)
 
 </div>
 
@@ -57,6 +57,12 @@ Translation and radio voice-over stay intact: the installer changes **one GXT2 s
 | **F6** | Previous track |
 
 Hotkeys work only while the car radio is on **AUX**.
+
+## Screenshots
+
+Night drive — the wheel center shows the live track from the player:
+
+![AUX Radio at night](docs/screenshots/wheel-night.png)
 
 ## Status window
 

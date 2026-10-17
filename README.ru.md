@@ -12,7 +12,7 @@
 
 **[English](README.md)** · **Русский**
 
-![AUX Radio в колесе радио GTA V](docs/screenshots/wheel.png)
+![AUX Radio в колесе радио GTA V](docs/screenshots/hero.png)
 
 </div>
 
@@ -57,6 +57,12 @@
 | **F6** | Предыдущий трек |
 
 Клавиши работают только когда в машине включена станция **AUX**.
+
+## Скриншоты
+
+Ночная поездка — центр колеса показывает трек из плеера:
+
+![AUX Radio ночью](docs/screenshots/wheel-night.png)
 
 ## Окно статуса
 
