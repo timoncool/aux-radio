@@ -14,3 +14,6 @@ tools/gta-patch/
 .cache/
 
 app/GtaRadio/payload/
+
+.hermes-tmp.*
+hermes-tmp*
