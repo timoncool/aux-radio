@@ -36,10 +36,13 @@ function Log($m) { $line = (Get-Date -Format "yyyy-MM-dd HH:mm:ss ") + $m; Add-C
 
 function Entry($lang) { "update.rpf\x64\patch\data\lang\${lang}_rel.rpf\global.gxt2" }
 
-function Extract-Entry($lang, $outDir, $fromRpf = $rpf) {
+function EntryBase($lang) { "x64b.rpf\data\lang\${lang}_rel.rpf\global.gxt2" }
+
+function Extract-Entry($lang, $outDir, $fromRpf = $rpf, $entryPath = $null) {
     New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-    & $gtaPatch extract $GameDir $fromRpf $outDir (Entry $lang).Substring("update.rpf\".Length).Replace("\", "/") | Out-Null
-    $file = Get-ChildItem -Path $outDir -Recurse -Filter "global.gxt2" | Select-Object -First 1
+    if (-not $entryPath) { $entryPath = Entry $lang }
+    & $gtaPatch extract $GameDir $fromRpf $outDir $entryPath | Out-Null
+    $file = Get-ChildItem -Path $outDir -Recurse | Where-Object { $_.Name -like "*global.gxt2" } | Select-Object -First 1
     if (-not $file) { throw "extract failed for $lang" }
     return $file.FullName
 }
@@ -87,7 +90,7 @@ foreach ($lang in $langs) {
             if ($current -eq $Text) {
                 # Станцию уже переименовали раньше (вручную или прошлой версией): оригинал берём из
                 # нетронутого update\update.rpf игры, а не из оверлея.
-                $vanilla = Extract-Entry $lang (Join-Path $work "vanilla_$lang") (Join-Path $GameDir "update\update.rpf")
+                $vanilla = Extract-Entry $lang (Join-Path $work "vanilla_$lang") (Join-Path $GameDir "x64b.rpf") (EntryBase $lang)
                 $original = Gxt2 @("get", $vanilla, $Label)
             }
             [IO.File]::WriteAllText($origFile, $original, [Text.Encoding]::UTF8)
